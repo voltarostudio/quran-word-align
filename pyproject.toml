@@ -1,0 +1,18 @@
+[project]
+name = "quran-word-align"
+version = "0.1.0"
+description = "Word-by-word timings for Quran recitations, by CTC forced alignment on quran-asr-tiny"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = ["numpy", "onnxruntime", "kaldi-native-fbank"]
+
+[project.scripts]
+quran-word-align = "quran_word_align.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["quran_word_align"]
