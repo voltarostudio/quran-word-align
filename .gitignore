@@ -3,3 +3,4 @@ __pycache__/
 aligned/
 *.egg-info/
 .claude/
+eval/RESULTS.json

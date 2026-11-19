@@ -58,9 +58,10 @@ recording on mp3quran.net, and `audio-sha256.csv` fingerprints the exact file we
 There is no exact reference for word timings, so these are checks, not an error rate. On a sample of
 these recordings, measured by `eval/evaluate.py` in the repository (see `eval/RESULTS.md`):
 
-- **Ayahs:** every ayah was found, and where mp3quran's ayah timings fit the recording, 98% of the
-  ayah starts we found are within one second of theirs.
-- **Words after a pause** begin within 80 ms of where the voice comes back for 98% of them.
+- **Ayahs:** all 10,871 ayahs of 203 surahs were found, and where mp3quran's ayah timings fit the
+  recording, the ayah starts we found are within one second of theirs for 98.6% of ayahs (Hafs),
+  100% (Warsh) and 99.6% (Qalun).
+- **Words after a pause** begin within 80 ms of where the voice comes back for 97.5% to 99.3% of them.
 - **Against Quran.com's word timings**, for reciters whose Quran.com recording is the same performance,
   word starts within each ayah agree within a quarter of a second for 90% to 96% of words (Abdul Basit
   92%, al-Husary 90%, al-Shatri 96%). Quran.com's timings were used only to measure; none are in here.
