@@ -6,6 +6,13 @@ recording. [العربية أدناه](#بالعربية)
 It is the aligner [Midad](https://voltarostudio.com) builds its word timings with, which highlight
 each word in the mushaf as the reciter reads it. It runs on a laptop, without a GPU.
 
+## The dataset: 21 reciters, already timed
+
+Word timings for 21 complete Hafs recitations on [mp3quran.net](https://www.mp3quran.net), about
+1.67 million words, are free to use under CC-BY 4.0:
+[download them from the releases](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v1.0)
+(24 MB zip). What is in it, and how good it is reciter by reciter: [dataset/README.md](dataset/README.md).
+
 ## How it works
 
 1. **Listening.** [quran-asr-tiny](https://huggingface.co/Abdou/quran-asr-tiny) (MIT, by Abdou), a
