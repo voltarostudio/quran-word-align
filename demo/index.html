@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>توقيت كلمات التلاوة · quran-word-align</title>
+<meta name="description" content="Word-by-word timings for any Quran recitation, in your browser: upload a recording, watch the words light up, download the timings.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  @font-face { font-family: "KFGQPC Hafs"; src: url("fonts/kfgqpc_hafs_v30.ttf") format("truetype"); font-display: swap; }
+  @font-face { font-family: "KFGQPC Warsh"; src: url("fonts/kfgqpc_warsh_v30.ttf") format("truetype"); font-display: swap; }
+  @font-face { font-family: "KFGQPC Qalun"; src: url("fonts/kfgqpc_qalun_v30.ttf") format("truetype"); font-display: swap; }
+
+  :root {
+    --bg: #f6f3ec; --surface: #fffdf8; --ink: #1f1d1a; --muted: #6e675c; --line: #e4ddd0;
+    --accent: #1f6f5c; --accent-ink: #ffffff; --mark: #d8eadf; --mark-strong: #b7d9c6; --warn: #b2621a;
+    --shadow: 0 1px 2px rgba(40, 30, 10, .06), 0 8px 24px rgba(40, 30, 10, .06);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12110f; --surface: #1b1a17; --ink: #efe9dd; --muted: #a59d8f; --line: #2f2c27;
+      --accent: #5fbf9f; --accent-ink: #0d1f19; --mark: #1f3a31; --mark-strong: #2b5546; --warn: #e3a35f;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12110f; --surface: #1b1a17; --ink: #efe9dd; --muted: #a59d8f; --line: #2f2c27;
+    --accent: #5fbf9f; --accent-ink: #0d1f19; --mark: #1f3a31; --mark-strong: #2b5546; --warn: #e3a35f;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.7 "IBM Plex Sans Arabic", system-ui, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 40px 16px 80px; }
+  header h1 { font-size: clamp(26px, 5vw, 36px); line-height: 1.3; margin: 0 0 6px; font-weight: 600; }
+  header p { margin: 0; color: var(--muted); }
+  header .en { direction: ltr; text-align: right; font-size: 14px; margin-top: 4px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 22px; margin-top: 24px; }
+
+  .tabs { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px; }
+  .tabs button { border: 0; background: transparent; color: var(--muted); font: inherit; padding: 6px 14px; border-radius: 9px; cursor: pointer; transition: background .25s, color .25s; }
+  .tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; align-items: end; }
+  label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); flex: 1 1 180px; }
+  select, input[type="file"] { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; min-width: 0; width: 100%; }
+  .drop { border: 1.5px dashed var(--line); border-radius: 14px; padding: 18px; text-align: center; color: var(--muted); cursor: pointer; transition: border-color .2s, background .2s; flex: 1 1 100%; }
+  .drop.over, .drop:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .drop strong { color: var(--ink); font-weight: 500; }
+  .go { font: inherit; font-weight: 600; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 11px 26px; cursor: pointer; transition: transform .2s cubic-bezier(.34, 1.56, .64, 1), opacity .2s; }
+  .go:hover { transform: translateY(-1px); }
+  .go:active { transform: scale(.97); }
+  .go:disabled { opacity: .45; cursor: default; transform: none; }
+  .note { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
+
+  .stages { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .stage { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; color: var(--muted); transition: color .3s; }
+  .stage.on, .stage.done { color: var(--ink); }
+  .stage .bar { grid-column: 1 / -1; height: 6px; background: var(--bg); border-radius: 99px; overflow: hidden; }
+  .stage .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .35s cubic-bezier(.22, 1, .36, 1); }
+  .stage.busy .bar i { width: 35%; animation: slide 1.2s ease-in-out infinite; }
+  @keyframes slide { from { transform: translateX(100%); } to { transform: translateX(-300%); } }
+  .error { color: var(--warn); margin: 12px 0 0; }
+
+  .player { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); margin: -22px -22px 18px; padding: 14px 22px; border-radius: 18px 18px 0 0; }
+  audio { width: 100%; }
+  .mushaf { position: relative; font-size: clamp(24px, 4.6vw, 32px); line-height: 2.25; text-align: justify; padding: 4px 2px; }
+  .mushaf.hafs { font-family: "KFGQPC Hafs", serif; }
+  .mushaf.warsh { font-family: "KFGQPC Warsh", serif; }
+  .mushaf.qalun { font-family: "KFGQPC Qalun", serif; }
+  .w { position: relative; z-index: 1; cursor: pointer; border-radius: 8px; transition: color .3s; }
+  .w.low { text-decoration: underline dotted color-mix(in srgb, var(--warn) 70%, transparent); text-underline-offset: .35em; }
+  .w.untimed { color: var(--muted); }
+  .w.now { color: var(--accent); }
+  .num { color: var(--muted); }
+  .marker { position: absolute; z-index: 0; top: 0; right: 0; height: 0; width: 0; background: var(--mark); border-radius: 10px; pointer-events: none; opacity: 0;
+    transition: transform .42s cubic-bezier(.34, 1.4, .64, 1), width .42s cubic-bezier(.34, 1.4, .64, 1), height .3s ease, opacity .35s ease; }
+  .marker.on { opacity: 1; }
+  .marker.pause { opacity: .45; }
+
+  .downloads { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .downloads span { color: var(--muted); font-size: 14px; margin-inline-end: 4px; }
+  .downloads button { font: inherit; font-size: 14px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 6px 14px; cursor: pointer; direction: ltr; transition: border-color .2s; }
+  .downloads button:hover { border-color: var(--accent); }
+  .legend { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  footer { margin-top: 36px; font-size: 13px; color: var(--muted); }
+  footer a, header a { color: var(--accent); }
+  [hidden] { display: none !important; }
+  @media (prefers-reduced-motion: reduce) { .marker, .stage .bar i, .go { transition: none; } .stage.busy .bar i { animation: none; width: 100%; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>توقيت كلمات التلاوة</h1>
+    <p>اختر تلاوةً لسورة كاملة، فنُعلِّم كلَّ كلمة حين يقرؤها القارئ، ثم نزّل توقيتها.</p>
+    <p class="en">Word-by-word timings for any Quran recitation, made in your browser · <a href="https://github.com/voltarostudio/quran-word-align">quran-word-align</a></p>
+  </header>
+
+  <section class="card" id="source">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="mp3quran">من mp3quran.net</button>
+      <button role="tab" aria-selected="false" data-tab="file">من جهازك</button>
+    </div>
+
+    <div data-panel="mp3quran">
+      <div class="row">
+        <label>القارئ<select id="reader"><option>…</option></select></label>
+        <label>السورة<select id="surah-online"></select></label>
+      </div>
+    </div>
+
+    <div data-panel="file" hidden>
+      <div class="row">
+        <div class="drop" id="drop" tabindex="0"><strong>اسحب ملفَّ التلاوة إلى هنا</strong> أو اضغط لتختاره<br><span id="file-name">تلاوة سورة كاملة: mp3 أو m4a أو wav</span></div>
+        <input type="file" id="file" accept="audio/*" hidden>
+        <label>السورة<select id="surah-file"></select></label>
+        <label>الرواية<select id="riwayah"><option value="hafs">حفص عن عاصم</option><option value="warsh">ورش عن نافع</option><option value="qalun">قالون عن نافع</option></select></label>
+      </div>
+    </div>
+
+    <div class="row"><button class="go" id="go">ابدأ</button></div>
+    <p class="note">يعمل كلُّه في متصفحك: لا يُرفع تسجيلك إلى أي مكان. يُنزَّل النموذج (١٩ م.ب) مرةً واحدة. السورة القصيرة تأخذ ثوانيَ، والطويلة دقائق.</p>
+  </section>
+
+  <section class="card" id="progress" hidden>
+    <ol class="stages">
+      <li class="stage" data-stage="audio"><span>قراءة التسجيل</span><b></b><div class="bar"><i></i></div></li>
+      <li class="stage" data-stage="model"><span>تنزيل النموذج</span><b></b><div class="bar"><i></i></div></li>
+      <li class="stage" data-stage="hear"><span>الاستماع إلى التلاوة حرفًا حرفًا</span><b></b><div class="bar"><i></i></div></li>
+      <li class="stage" data-stage="find"><span>تحديد مواضع الآيات</span><b></b><div class="bar"><i></i></div></li>
+      <li class="stage" data-stage="align"><span>مطابقة الكلمات</span><b></b><div class="bar"><i></i></div></li>
+    </ol>
+    <p class="error" id="error" hidden></p>
+  </section>
+
+  <section class="card" id="result" hidden>
+    <div class="player"><audio id="audio" controls preload="auto"></audio></div>
+    <div class="mushaf" id="mushaf"><div class="marker" id="marker"></div></div>
+    <p class="legend">اضغط كلمةً لتسمعها. والكلمة المسطَّرة بنقاط سمعها النموذج بوضوحٍ أقل، فتوقيتها أقلّ يقينًا.</p>
+    <div class="downloads"><span>نزّل التوقيت:</span>
+      <button data-format="json">JSON</button><button data-format="csv">CSV</button><button data-format="srt">SRT</button><button data-format="vtt">VTT</button><button data-format="segments">Quran.com segments</button>
+    </div>
+  </section>
+
+  <footer>
+    النموذج <a href="https://huggingface.co/Abdou/quran-asr-tiny">quran-asr-tiny</a> (MIT). نصّ المصحف وخطّه من مجمع الملك فهد لطباعة المصحف الشريف.
+    التلاوات وتوقيت الآيات من <a href="https://www.mp3quran.net">mp3quran.net</a>. الأداة مفتوحة المصدر من <a href="https://voltarostudio.com">Voltaro Studio</a>.
+  </footer>
+</main>
+
+<script type="module">
+import { FORMATS, FRAME } from "./aligner.js";
+
+const API = "https://www.mp3quran.net/api/v3";
+const RIWAYAT = { "حفص": "hafs", "ورش": "warsh", "قالون": "qalun" };
+const $ = (s) => document.querySelector(s);
+const digits = (n) => String(n).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]);
+const wordsCache = {};
+const loadWords = (r) => (wordsCache[r] ??= fetch(`../quran_word_align/data/${r}-words.json`).then((x) => x.json()));
+
+// ---- choosing the recording
+let tab = "mp3quran", file = null, reads = [];
+document.querySelectorAll("[role=tab]").forEach((b) => b.addEventListener("click", () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll("[role=tab]").forEach((x) => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll("[data-panel]").forEach((p) => (p.hidden = p.dataset.panel !== tab));
+}));
+const surahs = await fetch("surahs.json").then((x) => x.json());
+for (const id of ["#surah-online", "#surah-file"]) {
+  $(id).innerHTML = surahs.map((n, i) => `<option value="${i + 1}">${digits(i + 1)}. ${n}</option>`).join("");
+}
+$("#surah-online").value = "1";
+fetch(`${API}/ayat_timing/reads`).then((x) => x.json()).then((list) => {
+  reads = list.map((r) => ({ ...r, riwayah: Object.entries(RIWAYAT).find(([k]) => (r.rewaya || "").startsWith(k))?.[1] }))
+    .filter((r) => r.riwayah);
+  $("#reader").innerHTML = reads.map((r) => `<option value="${r.id}">${r.name}${r.riwayah === "hafs" ? "" : ` (${r.rewaya})`}</option>`).join("");
+  $("#reader").value = String(reads.find((r) => r.id === 118)?.id ?? reads[0].id);
+}).catch(() => { $("#reader").innerHTML = "<option>تعذّر جلب القرّاء</option>"; });
+
+const pick = (f) => { file = f; $("#file-name").textContent = f ? f.name : ""; };
+$("#drop").addEventListener("click", () => $("#file").click());
+$("#drop").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") $("#file").click(); });
+$("#file").addEventListener("change", (e) => pick(e.target.files[0]));
+$("#drop").addEventListener("dragover", (e) => { e.preventDefault(); $("#drop").classList.add("over"); });
+$("#drop").addEventListener("dragleave", () => $("#drop").classList.remove("over"));
+$("#drop").addEventListener("drop", (e) => { e.preventDefault(); $("#drop").classList.remove("over"); pick(e.dataTransfer.files[0]); });
+
+// ---- progress
+const stage = (name, progress) => {
+  const order = ["audio", "model", "hear", "find", "align", "done"];
+  document.querySelectorAll(".stage").forEach((li) => {
+    const i = order.indexOf(li.dataset.stage), j = order.indexOf(name);
+    li.classList.toggle("done", i < j); li.classList.toggle("on", i === j);
+    li.classList.toggle("busy", i === j && progress == null);
+    const bar = li.querySelector(".bar i"), label = li.querySelector("b");
+    if (i < j) { bar.style.width = "100%"; label.textContent = "✓"; }
+    else if (i > j) { bar.style.width = "0"; label.textContent = ""; }
+    else if (progress != null) { bar.style.width = `${Math.round(progress * 100)}%`; label.textContent = `${digits(Math.round(progress * 100))}٪`; }
+    else { bar.style.width = ""; label.textContent = ""; }
+  });
+};
+const fail = (msg) => { $("#error").textContent = msg; $("#error").hidden = false; $("#go").disabled = false; };
+
+async function decode(blob) {
+  const ctx = new AudioContext();
+  const audio = await ctx.decodeAudioData(await blob.arrayBuffer());
+  ctx.close();
+  const off = new OfflineAudioContext(1, Math.ceil(audio.duration * 16000), 16000);
+  const src = off.createBufferSource(); src.buffer = audio; src.connect(off.destination); src.start();
+  return (await off.startRendering()).getChannelData(0);
+}
+
+async function fetchWithProgress(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("missing");
+  const total = Number(res.headers.get("content-length")) || 0;
+  const reader = res.body.getReader(); const parts = []; let got = 0;
+  for (;;) { const { done, value } = await reader.read(); if (done) break; parts.push(value); got += value.length; if (total) stage("audio", got / total); }
+  return new Blob(parts, { type: "audio/mpeg" });
+}
+
+// ---- run
+const worker = new Worker("worker.js", { type: "module" });
+let run = null;
+$("#go").addEventListener("click", async () => {
+  $("#error").hidden = true; $("#go").disabled = true; $("#progress").hidden = false; $("#result").hidden = true;
+  stage("audio", 0);
+  try {
+    let blob, surah, riwayah;
+    if (tab === "mp3quran") {
+      const read = reads.find((r) => r.id === Number($("#reader").value));
+      if (!read) return fail("تعذّر جلب قائمة القرّاء. تحقّق من اتصالك وأعد المحاولة.");
+      surah = Number($("#surah-online").value); riwayah = read.riwayah;
+      try { blob = await fetchWithProgress(`${read.folder_url}${String(surah).padStart(3, "0")}.mp3`); }
+      catch { return fail("ليس لهذا القارئ تسجيلٌ لهذه السورة على mp3quran.net. اختر سورةً أخرى."); }
+    } else {
+      if (!file) return fail("اختر ملفَّ التلاوة أولًا.");
+      blob = file; surah = Number($("#surah-file").value); riwayah = $("#riwayah").value;
+    }
+    const [wave, words, hafs] = await Promise.all([decode(blob), loadWords(riwayah), loadWords("hafs")]);
+    run = { blob, surah, riwayah, words };
+    worker.postMessage({ wave, surah, words, hafs }, [wave.buffer]);
+  } catch (e) {
+    fail("تعذّر قراءة هذا التسجيل. جرّب ملفًّا آخر (mp3 أو m4a أو wav).");
+  }
+});
+
+worker.onmessage = ({ data }) => {
+  if (data.type === "progress") stage(data.stage, data.progress);
+  else if (data.type === "error") fail(`تعذّر إكمال المطابقة: ${data.message}`);
+  else if (data.type === "done") { stage("done"); $("#go").disabled = false; show(data.result); }
+};
+
+// ---- the words lighting up
+let timeline = [], spans = new Map(), current = null;
+function show(result) {
+  const { surah, riwayah, words, blob } = run;
+  run.result = result;
+  const mushaf = $("#mushaf");
+  mushaf.className = `mushaf ${riwayah}`;
+  mushaf.querySelectorAll(".a").forEach((x) => x.remove());
+  spans = new Map(); timeline = [];
+  for (let n = 1; words[`${surah}:${n}`]; n++) {
+    const ayah = document.createElement("span"); ayah.className = "a";
+    const timed = new Map((result[n] ?? []).map((w) => [w[0], w]));
+    for (const [i, text] of words[`${surah}:${n}`]) {
+      const s = document.createElement("span");
+      const w = timed.get(i);
+      s.className = "w" + (!w ? " untimed" : w[3] < 0.5 ? " low" : "");
+      s.textContent = text;
+      if (w) s.addEventListener("click", () => { audio.currentTime = w[1] / 1000; audio.play(); });
+      spans.set(`${n}:${i}`, s);
+      ayah.append(s, " ");
+    }
+    const num = document.createElement("span"); num.className = "num"; num.textContent = "۝" + digits(n);
+    ayah.append(num, " ");
+    mushaf.append(ayah);
+    for (const w of result[n] ?? []) timeline.push({ key: `${n}:${w[0]}`, start: w[1] / 1000, end: w[2] / 1000, ayah: n });
+  }
+  timeline.sort((a, b) => a.start - b.start);
+  const audio = $("#audio");
+  if (audio.src) URL.revokeObjectURL(audio.src);
+  audio.src = URL.createObjectURL(blob);
+  $("#result").hidden = false;
+  current = null; place(null);
+  $("#result").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+const audio = $("#audio"), marker = $("#marker");
+function place(item, paused = false) {
+  const span = item && spans.get(item.key);
+  if (current?.key !== item?.key) {
+    spans.get(current?.key)?.classList.remove("now");
+    span?.classList.add("now");
+  }
+  if (!span) { marker.classList.remove("on"); return; }
+  const box = $("#mushaf").getBoundingClientRect(), r = span.getBoundingClientRect();
+  const padX = 6, padY = 2;
+  marker.style.width = `${r.width + 2 * padX}px`;
+  marker.style.height = `${r.height + 2 * padY}px`;
+  marker.style.transform = `translate(${r.right - box.right + padX}px, ${r.top - box.top - padY}px)`;
+  marker.classList.add("on"); marker.classList.toggle("pause", paused);
+  if (current?.ayah !== item.ayah) {
+    const top = r.top, bottom = r.bottom, h = window.innerHeight;
+    if (top < 120 || bottom > h - 80) window.scrollBy({ top: top - h * 0.38, behavior: "smooth" });
+  }
+  current = item;
+}
+function tick() {
+  const t = audio.currentTime;
+  let lo = 0, hi = timeline.length - 1, at = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (timeline[m].start <= t) { at = m; lo = m + 1; } else hi = m - 1; }
+  const item = at >= 0 ? timeline[at] : null;
+  if (item?.key !== current?.key) place(item, item && t > item.end + 0.25);
+  else if (item) marker.classList.toggle("pause", t > item.end + 0.25);
+  if (!audio.paused) requestAnimationFrame(tick);
+}
+audio.addEventListener("play", () => requestAnimationFrame(tick));
+audio.addEventListener("seeked", tick);
+addEventListener("resize", () => current && place(current));
+
+// ---- downloads
+document.querySelectorAll("[data-format]").forEach((b) => b.addEventListener("click", () => {
+  const f = b.dataset.format, { surah, result, words } = run;
+  const text = FORMATS[f](surah, result, words);
+  const ext = { json: "json", csv: "csv", srt: "srt", vtt: "vtt", segments: "segments.json" }[f];
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  a.download = `${String(surah).padStart(3, "0")}.${ext}`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}));
+</script>
+</body>
+</html>
