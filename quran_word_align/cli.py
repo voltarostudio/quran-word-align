@@ -15,6 +15,7 @@ import argparse
 import json
 from pathlib import Path
 import time
+import urllib.error
 import urllib.request
 
 from .align import RIWAYAT, Model, align_recording, mushaf_words
@@ -62,7 +63,8 @@ def reads() -> None:
         print(f"{read['id']:>5}  {read['name']}  ({read.get('rewaya', '')}: {known})")
 
 
-def mp3quran(read_id: int, surahs: list[int], out: Path, ayah_timings: bool, formats: list[str]) -> None:
+def mp3quran(read_id: int, surahs: list[int], out: Path, ayah_timings: bool, formats: list[str],
+             resume: bool = False) -> None:
     """Without `ayah_timings`, the ayahs are found in the recording itself, which is right also where
     mp3quran's ayah timings are not (they are off by an ayah in some surahs). With it, each ayah is
     aligned in the window of mp3quran's timing, widened by three seconds: they are cut ayah to ayah
@@ -73,7 +75,13 @@ def mp3quran(read_id: int, surahs: list[int], out: Path, ayah_timings: bool, for
         raise SystemExit(f"{read['name']}: {read.get('rewaya')} is not one of the riwayat this tool has ({', '.join(RIWAYAT)})")
     words, model = mushaf_words(riwayah), Model()
     for surah in surahs:
-        audio = _download(f"{read['folder_url']}{surah:03}.mp3", CACHE / f"mp3quran-{read_id}" / f"{surah:03}.mp3")
+        if resume and (out / f"{surah:03}.{EXTENSIONS[formats[0]]}").exists():
+            continue
+        try:
+            audio = _download(f"{read['folder_url']}{surah:03}.mp3", CACHE / f"mp3quran-{read_id}" / f"{surah:03}.mp3")
+        except urllib.error.HTTPError as e:
+            print(f"{surah:03}: no recording on mp3quran.net ({e.code})")
+            continue
         windows = None
         if ayah_timings:
             rows = json.loads(_get(f"{API}/ayat_timing?surah={surah}&read={read_id}"))
@@ -118,6 +126,7 @@ def main() -> None:
     m.add_argument("surahs", type=int, nargs="*", help="surahs to align (all 114 if none)")
     m.add_argument("--ayah-timings", action="store_true",
                    help="align each ayah in the window of mp3quran's ayah timing instead of finding the ayahs")
+    m.add_argument("--resume", action="store_true", help="leave out surahs already written")
     common(m, None)
     args = parser.parse_args()
     formats = [x.strip() for x in getattr(args, "format", "json").split(",") if x.strip()]
@@ -128,7 +137,7 @@ def main() -> None:
         reads()
     elif args.command == "mp3quran":
         mp3quran(args.read, args.surahs or list(range(1, 115)), args.out or Path("aligned") / str(args.read),
-                 args.ayah_timings, formats)
+                 args.ayah_timings, formats, args.resume)
     else:
         own_file(args.audio, args.surah, args.riwayah, args.timings, args.out, args.margin, formats)
 

@@ -18,9 +18,10 @@ configs:
 
 # Quran word timings on mp3quran.net recordings (v{version})
 
-When each word of the Quran starts and ends in 21 complete recitations from
-[mp3quran.net](https://www.mp3quran.net), in the Hafs reading: about 1.67 million timed words. With
-them an app can light up each word of the mushaf as the reciter reads it.
+When each word of the Quran starts and ends in {reciters} complete recitations from
+[mp3quran.net](https://www.mp3quran.net): 21 in the reading of Hafs, 4 of Warsh and 3 of Qalun,
+about {words} timed words. With them an app can light up each word of the mushaf as the reciter
+reads it, cut a recitation word by word, or subtitle it.
 
 The timings are ours, made with [quran-word-align](https://github.com/voltarostudio/quran-word-align),
 and free under **CC-BY 4.0**. The recordings are not in the dataset: each timing file points to its
@@ -30,55 +31,69 @@ recording on mp3quran.net, and `audio-sha256.csv` fingerprints the exact file we
 
 | File | What it holds |
 |---|---|
-| `timings/<reciter>/<surah>.json` | `{"ayah": [[word, start_ms, end_ms], ...]}`, the words in the order heard |
-| `words.csv` | the same, one row a word: `reciter, surah, ayah, word, start_ms, end_ms` |
-| `reciters.csv` | each reciter: mp3quran read id, names, riwayah, the folder of the recordings |
+| `timings/<reciter>/<surah>.json` | `{"ayah": [[word, start_ms, end_ms, confidence], ...]}`, the words in the order heard |
+| `words.csv` | the same, one row a word: `reciter, riwayah, surah, ayah, word, start_ms, end_ms, confidence` |
+| `reciters.csv` | each reciter: mp3quran read id, riwayah, names, the folder of the recordings |
 | `audio-sha256.csv` | each recording aligned: its URL, size and SHA-256 |
 | `quality.csv` | the table below |
-| `suspect-ayahs.csv` | ayahs whose timings are likely wrong, and why |
-| `hafs-words.json` | the words: `{"surah:ayah": [[word, text], ...]}`, the King Fahd Complex's Hafs text |
+| `differs-from-mp3quran.csv` | ayahs we place outside mp3quran's ayah timing, to check |
+| `hafs-words.json`, `warsh-words.json`, `qalun-words.json` | the words: `{"surah:ayah": [[word, text], ...]}`, the King Fahd Complex's text of each riwayah |
 
 - **Times** are milliseconds from the start of the surah's recording on mp3quran.net
   (`<audio_folder><surah:03>.mp3`).
-- **Words** are numbered as the King Fahd Complex's Hafs mushaf numbers them, from 1 in each ayah
-  (`hafs-words.json`). A word made only of a mark is not timed.
+- **Words** are numbered as the King Fahd Complex's mushaf of the riwayah numbers them, from 1 in each
+  ayah; **ayahs** as that mushaf counts them (Warsh and Qalun count 6,214, and their al-Fatiha does not
+  count the basmala as an ayah).
+- **A word starts** where its first letter is heard; after a pause, where the voice comes back. It
+  **ends** where the next word starts, or where the voice stops if the reciter pauses first.
+- **Confidence**, from 0 to 1, is how clearly the model heard the word's letters where they were placed.
+  It tracks accuracy: against Quran.com's timings, 90% of words above 0.85 agree within a quarter of
+  a second, and 15% of words under 0.3. Words under 0.5 (about 2% of them) are worth checking.
 - **A reciter who goes back** and reads words again is followed: the words repeated are listed again,
-  in the order heard. So an ayah may list a word twice, and its words are not always in order.
-- **Ayah 1 of al-Fatiha** is the basmala. The basmala before the other surahs is not timed.
+  in the order heard. So an ayah may list a word twice.
+- The basmala before the surahs (but al-Fatiha in Hafs) and the isti'adha are not timed.
 
 ## How good it is
 
-There is no exact reference for word timings, so take these as checks, not as an error rate.
+There is no exact reference for word timings, so these are checks, not an error rate. On a sample of
+these recordings, measured by `eval/evaluate.py` in the repository (see `eval/RESULTS.md`):
 
-- **Agreement with Quran.com**: where Quran.com's recording is the same performance, the share of
-  words whose start (from their ayah's start) is within a quarter or half a second of Quran.com's word
-  timings. Quran.com's own timings are not exact either.
-- **Suspect ayahs**: ayahs whose words run back into the previous ayah's, or begin more than 2.5 s
-  from where mp3quran says the ayah begins. Each ayah was aligned in a window taken from mp3quran's
-  ayah timings; where those timings do not fit the recording (they are off by an ayah in some surahs),
-  the words found are wrong. These ayahs are listed in `suspect-ayahs.csv`; many of them are in a few
-  surahs ({worst_surahs}).
+- **Ayahs:** every ayah was found, and where mp3quran's ayah timings fit the recording, 98% of the
+  ayah starts we found are within one second of theirs.
+- **Words after a pause** begin within 80 ms of where the voice comes back for 98% of them.
+- **Against Quran.com's word timings**, for reciters whose Quran.com recording is the same performance,
+  word starts within each ayah agree within a quarter of a second for 90% to 96% of words (Abdul Basit
+  92%, al-Husary 90%, al-Shatri 96%). Quran.com's timings were used only to measure; none are in here.
+
+Reciter by reciter, on the whole dataset:
 
 {quality_table}
 
-It is weakest on slow recitations with long madds (Abdul Basit, al-Shatri) and on surahs whose ayah
-timings are off. Every word has a time for 15 of the 21 reciters; for the other six, 1 to 11 ayahs
-are missing (99.7% to 99.99% of words timed), where mp3quran's ayah timings are missing or run past the end of the recording.
+"Ayahs where mp3quran puts them": the share of ayahs whose start we found inside the span mp3quran's
+ayah timing gives that ayah. Most of the rest are mp3quran's mistakes, not ours: their timings are off
+by an ayah or more in some surahs ({worst_surahs}). We checked such surahs by what the model hears at
+each place: at our ayah starts it hears the ayah's first words, at theirs it does not. The {differ}
+ayahs (of {compared}) are listed in `differs-from-mp3quran.csv`.
 
 ## How it was made
 
 1. [quran-asr-tiny](https://huggingface.co/Abdou/quran-asr-tiny) (MIT, by Abdou), a small model
    trained on Quran recitations, hears each 40 ms of the recording as letter probabilities.
-2. CTC forced alignment fits each ayah's words, letter by letter, to them, in the window of the
-   ayah's mp3quran timing widened by 3 s each side, with a few words of the ayahs either side.
+2. The whole surah is followed a minute at a time, by CTC forced alignment of the ayahs' words,
+   letter by letter, to find where each ayah is. No ayah timings are used.
+3. Each ayah is aligned again in its own window, with a few words of the ayahs either side, and each
+   word gets its confidence. Word ends before a pause come from the recording's loudness.
 
-`dataset/build.py` in the repository packages the files and computes the tables.
+`dataset/align.sh` and `dataset/build.py` in the repository make the dataset from scratch.
+
+**Version 1.0** (21 Hafs reciters) was aligned in mp3quran's ayah windows, and so went wrong wherever
+those windows are off; version 2.0 finds the ayahs itself, adds confidence, Warsh and Qalun.
 
 ## Credit and licence
 
 The timings: **CC-BY 4.0**, Voltaro Studio. A credit that is enough:
 
-> Word timings: quran-word-align by Voltaro Studio (CC-BY 4.0), on recordings and ayah timings from mp3quran.net.
+> Word timings: quran-word-align by Voltaro Studio (CC-BY 4.0), on recordings from mp3quran.net.
 
 The recordings and ayah timings are from mp3quran.net, which allows any use of its material; the
 recordings belong to their reciters. The Quran text is the King Fahd Glorious Quran Printing Complex's,
@@ -88,18 +103,20 @@ unchanged. Nothing here comes from Quran.com. See `LICENSE.md`.
 
 ## بالعربية
 
-توقيتُ كلِّ كلمةٍ من كلمات القرآن، متى تبدأ ومتى تنتهي، في ٢١ ختمةً كاملة من موقع mp3quran.net
-برواية حفص: نحو مليون وستمئة وسبعين ألف كلمة. يُعلِّم بها التطبيقُ الكلمةَ في المصحف حين يقرؤها القارئ.
+توقيتُ كلِّ كلمةٍ من كلمات القرآن، متى تبدأ ومتى تنتهي، في {reciters} ختمةً كاملة من موقع mp3quran.net:
+إحدى وعشرون برواية حفص، وأربعٌ برواية ورش، وثلاثٌ برواية قالون. يُعلِّم بها التطبيقُ الكلمةَ في المصحف
+حين يقرؤها القارئ، أو يقطع بها التلاوة كلمةً كلمة.
 
 التوقيت من عملنا، صنعناه بأداة quran-word-align، وهو مباحٌ برخصة **CC-BY 4.0**: انقله وانشره وعدّله
 لأي غرض، تجاريًّا كان أو غيره، واذكر مصدره. والتلاوات ليست فيه: يشير كلُّ ملفٍّ إلى تسجيله في
-mp3quran.net.
+mp3quran.net، ومعه بصمةُ الملف الذي وقّتناه.
 
 - **الأزمنة** بالجزء من ألف من الثانية، من أول تسجيل السورة.
-- **الكلمات** مرقّمةٌ كما يرقّمها مصحف مجمع الملك فهد برواية حفص.
+- **الكلمات والآيات** مرقّمةٌ كما يرقّمها مصحف مجمع الملك فهد لكل رواية.
+- **الثقة** لكل كلمة، من صفر إلى واحد: مقدار وضوح حروفها للنموذج في موضعها.
 - **إذا رجع القارئ فأعاد كلمات** ذُكرت الكلمات المعادة مرةً ثانية بترتيب سماعها.
-- **الآيات المشكوك فيها** في `suspect-ayahs.csv`: أكثرها في سورٍ قليلة لا يوافق فيها توقيتُ الآيات في
-  mp3quran التسجيلَ.
+- **وجدنا مواضع الآيات بأنفسنا** من التسجيل، فصحّت حيث أخطأ توقيت الآيات في mp3quran، وهو خاطئٌ بآيةٍ أو
+  أكثر في بعض السور.
 
-**الإسناد:** التلاوات وتوقيت الآيات من موقع mp3quran.net، ونصّ المصحف من مجمع الملك فهد لطباعة
-المصحف الشريف، والتوقيت من Voltaro Studio. وليس فيه شيءٌ من Quran.com.
+**الإسناد:** التلاوات من موقع mp3quran.net، ونصّ المصحف من مجمع الملك فهد لطباعة المصحف الشريف،
+والتوقيت من Voltaro Studio. وليس فيه شيءٌ من Quran.com.

@@ -26,6 +26,7 @@ async function loadModel() {
   const bytes = new Uint8Array(got);
   let at = 0;
   for (const p of parts) { bytes.set(p, at); at += p.length; }
+  say("model", null);   // the engine itself (11 MB) loads now
   model = await Model.load(ort, bytes);
   return model;
 }
