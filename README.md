@@ -6,7 +6,7 @@ recording. It runs on a laptop without a GPU, or in the browser. [العربية
 - **[Try it in your browser](https://voltarostudio.github.io/quran-word-align/)**: pick a reciter from
   mp3quran.net or a recording of your own, watch the words light up, download the timings. Nothing is
   uploaded.
-- **[The dataset](https://github.com/voltarostudio/quran-word-align/releases)**: 28 complete
+- **[The dataset](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v2.0)**: 28 complete
   recitations from mp3quran.net (Hafs, Warsh, Qalun), already timed word by word, CC-BY 4.0.
   [What is in it](dataset/README.md).
 
@@ -158,7 +158,7 @@ belong to their sources (mp3quran.net and others); this repository holds none.
 
 - **[جرّبها في متصفحك](https://voltarostudio.github.io/quran-word-align/):** اختر قارئًا من mp3quran.net
   أو تلاوةً من جهازك، فترى الكلمات تُعلَّم مع القراءة، ثم نزّل توقيتها. لا يُرفع تسجيلك إلى أي مكان.
-- **[مجموعة البيانات](https://github.com/voltarostudio/quran-word-align/releases):** ٢٨ ختمةً كاملة من
+- **[مجموعة البيانات](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v2.0):** ٢٨ ختمةً كاملة من
   mp3quran.net بروايات حفص وورش وقالون، موقّتةٌ كلمةً كلمة، ومباحةٌ برخصة CC-BY 4.0.
 
 ### ما تفعله
