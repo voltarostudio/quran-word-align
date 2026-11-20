@@ -7,7 +7,6 @@ tags:
 - quran
 - forced-alignment
 - word-timings
-- audio
 - arabic
 size_categories:
 - 1M<n<10M
