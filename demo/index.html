@@ -13,68 +13,60 @@
   @font-face { font-family: "KFGQPC Warsh"; src: url("fonts/kfgqpc_warsh_v30.ttf") format("truetype"); font-display: swap; }
   @font-face { font-family: "KFGQPC Qalun"; src: url("fonts/kfgqpc_qalun_v30.ttf") format("truetype"); font-display: swap; }
 
+  /* Midad's colours: by day sand, paper, ink, date, dune, palm; by night its naqsh night. */
   :root {
-    /* Midad's colours (sakina): sand, paper, ink, date, dune, palm */
-    --bg: #F6F1E7; --surface: #FFFDF8; --ink: #1E2A2B; --muted: #7A5A3A; --line: #EDE3CF;
-    --accent: #2F6B5A; --accent-ink: #FFFDF8; --mark: #E3EFE9; --mark-strong: #C9DFD4; --warn: #9C3D2E;
-    --shadow: 0 1px 2px rgba(40, 30, 10, .06), 0 8px 24px rgba(40, 30, 10, .06);
+    --bg: #F6F1E7; --ink: #1E2A2B; --muted: #7A5A3A; --line: #D9C7A3; --soft: #EDE3CF;
+    --accent: #2F6B5A; --accent-ink: #FFFDF8; --mark: #E3EFE9; --warn: #9C3D2E; --bar: rgba(246, 241, 231, .9);
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      /* Midad's night (naqsh): night, ink teal, frame, ivory, palm at night */
-      --bg: #0B2B31; --surface: #0E3B43; --ink: #EDE6D6; --muted: #A7B5AF; --line: #1F4B52;
-      --accent: #6FB59A; --accent-ink: #0B2B31; --mark: #1F4B52; --mark-strong: #2A5D63; --warn: #E0A07A;
-      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+      --bg: #0B2B31; --ink: #EDE6D6; --muted: #A7B5AF; --line: #2A5D63; --soft: #1F4B52;
+      --accent: #6FB59A; --accent-ink: #0B2B31; --mark: #1F4B52; --warn: #E0A07A; --bar: rgba(11, 43, 49, .9);
       color-scheme: dark;
     }
   }
-  :root[data-theme="dark"] {
-    --bg: #0B2B31; --surface: #0E3B43; --ink: #EDE6D6; --muted: #A7B5AF; --line: #1F4B52;
-    --accent: #6FB59A; --accent-ink: #0B2B31; --mark: #1F4B52; --mark-strong: #2A5D63; --warn: #E0A07A;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
-    color-scheme: dark;
-  }
 
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.7 "IBM Plex Sans Arabic", system-ui, sans-serif; }
-  main { max-width: 860px; margin: 0 auto; padding: 40px 16px 80px; }
-  header h1 { font-size: clamp(26px, 5vw, 36px); line-height: 1.3; margin: 0 0 6px; font-weight: 600; }
-  header p { margin: 0; color: var(--muted); }
-  header .en { direction: ltr; text-align: right; font-size: 14px; margin-top: 4px; }
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 22px; margin-top: 24px; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.75 "IBM Plex Sans Arabic", system-ui, sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 36px 22px 140px; }
+  .brand { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; }
+  .brand a { color: inherit; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 28px 0; }
 
-  .tabs { display: inline-flex; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 4px; gap: 4px; }
-  .tabs button { border: 0; background: transparent; color: var(--muted); font: inherit; padding: 6px 14px; border-radius: 9px; cursor: pointer; transition: background .25s, color .25s; }
-  .tabs button[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
-  .row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; align-items: end; }
-  label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); flex: 1 1 180px; }
-  select, input[type="file"] { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; min-width: 0; width: 100%; }
-  .drop { border: 1.5px dashed var(--line); border-radius: 14px; padding: 18px; text-align: center; color: var(--muted); cursor: pointer; transition: border-color .2s, background .2s; flex: 1 1 100%; }
-  .drop.over, .drop:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
-  .drop strong { color: var(--ink); font-weight: 500; }
-  .go { font: inherit; font-weight: 600; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 11px 26px; cursor: pointer; transition: transform .2s cubic-bezier(.34, 1.56, .64, 1), opacity .2s; }
-  .go:hover { transform: translateY(-1px); }
-  .go:active { transform: scale(.97); }
-  .go:disabled { opacity: .45; cursor: default; transform: none; }
-  .note { font-size: 13px; color: var(--muted); margin: 14px 0 0; }
+  /* The form is a sentence: "listen to surah ___ recited by ___". */
+  .say { font-size: clamp(27px, 7vw, 40px); line-height: 1.6; font-weight: 500; margin: 34px 0 0; letter-spacing: -.005em; }
+  .say select, .say .pickfile { font: inherit; color: var(--accent); background: transparent; border: 0; border-bottom: 2px dotted var(--accent);
+    padding: 0 2px; margin: 0; border-radius: 0; appearance: none; -webkit-appearance: none; cursor: pointer; max-width: 100%; }
+  .say select:focus-visible, .say .pickfile:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .say .pickfile.over { background: var(--mark); }
+  .act { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-top: 26px; }
+  .go { font: inherit; font-weight: 600; font-size: 17px; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 999px; padding: 12px 30px; cursor: pointer;
+    transition: transform .25s cubic-bezier(.34, 1.56, .64, 1), opacity .2s; }
+  .go:hover { transform: translateY(-2px); }
+  .go:active { transform: scale(.96); }
+  .go:disabled { opacity: .4; cursor: default; transform: none; }
+  .switch { font: inherit; font-size: 15px; color: var(--muted); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 5px; text-decoration-color: var(--line); }
+  .note { font-size: 14px; color: var(--muted); margin: 18px 0 0; max-width: 34em; }
 
-  .stages { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-  .stage { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; color: var(--muted); transition: color .3s; }
-  .stage.on, .stage.done { color: var(--ink); }
-  .stage .bar { grid-column: 1 / -1; height: 6px; background: var(--bg); border-radius: 99px; overflow: hidden; }
-  .stage .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 99px; transition: width .35s cubic-bezier(.22, 1, .36, 1); }
-  .stage.busy .bar i { width: 35%; animation: slide 1.2s ease-in-out infinite; }
-  @keyframes slide { from { transform: translateX(100%); } to { transform: translateX(-300%); } }
+  /* Progress is one line that is inked as the work goes on. */
+  #progress { margin-top: 30px; }
+  .stage { display: none; }
+  .stage.on { display: flex; justify-content: space-between; gap: 12px; color: var(--ink); font-size: 15px; }
+  .stage b { font-weight: 500; color: var(--muted); }
+  .line { position: relative; height: 2px; background: var(--soft); margin-top: 8px; overflow: hidden; }
+  .line i { position: absolute; inset: 0 0 0 auto; width: 0; background: var(--accent); transition: width .4s cubic-bezier(.22, 1, .36, 1); }
+  .line.busy i { width: 30%; animation: slide 1.3s ease-in-out infinite; }
+  @keyframes slide { from { transform: translateX(110%); } to { transform: translateX(-340%); } }
   .error { color: var(--warn); margin: 12px 0 0; }
 
-  .player { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--surface) 92%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); margin: -22px -22px 18px; padding: 14px 22px; border-radius: 18px 18px 0 0; }
-  audio { width: 100%; }
-  .mushaf { position: relative; font-size: clamp(24px, 4.6vw, 32px); line-height: 2.25; text-align: justify; padding: 4px 2px; }
+  /* The mushaf, straight on the page. */
+  #result { margin-top: 10px; }
+  .mushaf { position: relative; font-size: clamp(25px, 5.4vw, 33px); line-height: 2.3; text-align: justify; text-align-last: center; }
   .mushaf.hafs { font-family: "KFGQPC Hafs", serif; }
   .mushaf.warsh { font-family: "KFGQPC Warsh", serif; }
   .mushaf.qalun { font-family: "KFGQPC Qalun", serif; }
-  .w { position: relative; z-index: 1; cursor: pointer; border-radius: 8px; transition: color .3s; }
+  .w { position: relative; z-index: 1; cursor: pointer; transition: color .3s; }
   .w.low { text-decoration: underline dotted color-mix(in srgb, var(--warn) 70%, transparent); text-underline-offset: .35em; }
   .w.untimed { color: var(--muted); }
   .w.now { color: var(--accent); }
@@ -85,80 +77,84 @@
   .mushaf.inking .w.untimed { color: var(--muted); }
   .num { color: var(--muted); }
   .marker { position: absolute; z-index: 0; top: 0; right: 0; height: 0; width: 0; background: var(--mark); border-radius: 10px; pointer-events: none; opacity: 0;
-    transition: transform .42s cubic-bezier(.34, 1.4, .64, 1), width .42s cubic-bezier(.34, 1.4, .64, 1), height .3s ease, opacity .35s ease; }
+    transition: transform .45s cubic-bezier(.34, 1.4, .64, 1), width .45s cubic-bezier(.34, 1.4, .64, 1), height .3s ease, opacity .35s ease; }
   .marker.on { opacity: 1; }
   .marker.pause { opacity: .45; }
+  .legend { font-size: 14px; color: var(--muted); margin-top: 18px; }
+  .downloads { font-size: 15px; color: var(--muted); margin-top: 10px; }
+  .downloads button { font: inherit; color: var(--ink); background: none; border: 0; padding: 0 2px; cursor: pointer; direction: ltr;
+    text-decoration: underline; text-underline-offset: 5px; text-decoration-color: var(--line); }
+  .downloads button:hover { text-decoration-color: var(--accent); color: var(--accent); }
 
-  .downloads { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
-  .downloads span { color: var(--muted); font-size: 14px; margin-inline-end: 4px; }
-  .downloads button { font: inherit; font-size: 14px; background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 6px 14px; cursor: pointer; direction: ltr; transition: border-color .2s; }
-  .downloads button:hover { border-color: var(--accent); }
-  .legend { font-size: 13px; color: var(--muted); margin-top: 10px; }
-  footer { margin-top: 36px; font-size: 13px; color: var(--muted); }
-  footer a, header a { color: var(--accent); }
+  /* Our own player: a play button, the time, and a thin line to seek on. */
+  .player { position: fixed; inset: auto 0 0 0; z-index: 5; background: var(--bar); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line); padding: 12px 22px calc(14px + env(safe-area-inset-bottom)); }
+  .player > div { max-width: 680px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
+  .play { width: 48px; height: 48px; flex: none; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; cursor: pointer;
+    transition: transform .25s cubic-bezier(.34, 1.56, .64, 1); }
+  .play:active { transform: scale(.92); }
+  .play svg { width: 18px; height: 18px; fill: currentColor; }
+  .track { flex: 1; height: 28px; position: relative; cursor: pointer; touch-action: none; }
+  .track::before { content: ""; position: absolute; inset: 13px 0; background: var(--soft); border-radius: 2px; }
+  .track i { position: absolute; top: 13px; bottom: 13px; right: 0; width: 0; background: var(--accent); border-radius: 2px; }
+  .time { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: left; }
+
+  footer { margin-top: 48px; font-size: 13px; color: var(--muted); line-height: 1.9; }
+  footer a { color: inherit; }
   [hidden] { display: none !important; }
-  @media (prefers-reduced-motion: reduce) { .marker, .stage .bar i, .go, .mushaf.inking .w { transition: none; } .stage.busy .bar i { animation: none; width: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .marker, .line i, .go, .play, .mushaf.inking .w { transition: none; } .line.busy i { animation: none; width: 100%; } }
 </style>
 </head>
 <body>
 <main>
-  <header>
-    <h1>توقيت كلمات التلاوة</h1>
-    <p>اختر تلاوةً لسورة كاملة، فنُعلِّم كلَّ كلمة حين يقرؤها القارئ، ثم نزّل توقيتها.</p>
-    <p class="en">Word-by-word timings for any Quran recitation, made in your browser · <a href="https://github.com/voltarostudio/quran-word-align">quran-word-align</a></p>
-  </header>
+  <div class="brand"><span>مِداد · أداةٌ مفتوحة المصدر</span><a href="https://github.com/voltarostudio/quran-word-align" dir="ltr">quran-word-align</a></div>
 
-  <section class="card" id="source">
-    <div class="tabs" role="tablist">
-      <button role="tab" aria-selected="true" data-tab="mp3quran">من mp3quran.net</button>
-      <button role="tab" aria-selected="false" data-tab="file">من جهازك</button>
+  <section id="source">
+    <h1 class="say" data-panel="mp3quran">اسمع سورة <select id="surah-online" aria-label="السورة"></select><br>بصوت <select id="reader" aria-label="القارئ"><option>…</option></select></h1>
+    <h1 class="say" data-panel="file" hidden>وقّت <span class="pickfile" id="drop" tabindex="0" role="button" aria-label="اختر ملفَّ التلاوة"><span id="file-name">تلاوةً من جهازك</span></span><br>لسورة <select id="surah-file" aria-label="السورة"></select><br>برواية <select id="riwayah" aria-label="الرواية"><option value="hafs">حفص</option><option value="warsh">ورش</option><option value="qalun">قالون</option></select></h1>
+    <input type="file" id="file" accept="audio/*" hidden>
+    <div class="act">
+      <button class="go" id="go">ابدأ</button>
+      <button class="switch" data-tab="file">أو وقّت تلاوةً من جهازك</button>
+      <button class="switch" data-tab="mp3quran" hidden>أو اختر من قرّاء mp3quran.net</button>
     </div>
-
-    <div data-panel="mp3quran">
-      <div class="row">
-        <label>القارئ<select id="reader"><option>…</option></select></label>
-        <label>السورة<select id="surah-online"></select></label>
-      </div>
-    </div>
-
-    <div data-panel="file" hidden>
-      <div class="row">
-        <div class="drop" id="drop" tabindex="0"><strong>اسحب ملفَّ التلاوة إلى هنا</strong> أو اضغط لتختاره<br><span id="file-name">تلاوة سورة كاملة: mp3 أو m4a أو wav</span></div>
-        <input type="file" id="file" accept="audio/*" hidden>
-        <label>السورة<select id="surah-file"></select></label>
-        <label>الرواية<select id="riwayah"><option value="hafs">حفص عن عاصم</option><option value="warsh">ورش عن نافع</option><option value="qalun">قالون عن نافع</option></select></label>
-      </div>
-    </div>
-
-    <div class="row"><button class="go" id="go">ابدأ</button></div>
-    <p class="note">يعمل كلُّه في متصفحك: لا يُرفع تسجيلك إلى أي مكان. يُنزَّل النموذج (١٩ م.ب) مرةً واحدة. السورة القصيرة تأخذ ثوانيَ، والطويلة دقائق.</p>
+    <p class="note">نُعلِّم كلَّ كلمةٍ حين يقرؤها القارئ، ثم تنزّل توقيتها. يعمل كلُّه في متصفحك، فلا يُرفع تسجيلك إلى أي مكان. السورة القصيرة تأخذ ثوانيَ، والطويلة دقائق.</p>
   </section>
 
-  <section class="card" id="progress" hidden>
-    <ol class="stages">
-      <li class="stage" data-stage="audio"><span>قراءة التسجيل</span><b></b><div class="bar"><i></i></div></li>
-      <li class="stage" data-stage="model"><span>تنزيل النموذج</span><b></b><div class="bar"><i></i></div></li>
-      <li class="stage" data-stage="hear"><span>الاستماع إلى التلاوة حرفًا حرفًا</span><b></b><div class="bar"><i></i></div></li>
-      <li class="stage" data-stage="find"><span>تحديد مواضع الآيات</span><b></b><div class="bar"><i></i></div></li>
-      <li class="stage" data-stage="align"><span>مطابقة الكلمات</span><b></b><div class="bar"><i></i></div></li>
+  <section id="progress" hidden>
+    <ol style="list-style:none;margin:0;padding:0">
+      <li class="stage" data-stage="audio"><span>قراءة التسجيل</span><b></b></li>
+      <li class="stage" data-stage="model"><span>تنزيل النموذج (١٩ م.ب، مرةً واحدة)</span><b></b></li>
+      <li class="stage" data-stage="hear"><span>الاستماع إلى التلاوة حرفًا حرفًا</span><b></b></li>
+      <li class="stage" data-stage="find"><span>تحديد مواضع الآيات</span><b></b></li>
+      <li class="stage" data-stage="align"><span>مطابقة الكلمات</span><b></b></li>
     </ol>
+    <div class="line" id="line"><i></i></div>
     <p class="error" id="error" hidden></p>
   </section>
 
-  <section class="card" id="result" hidden>
-    <div class="player"><audio id="audio" controls preload="auto"></audio></div>
+  <section id="result" hidden>
+    <hr>
     <div class="mushaf" id="mushaf"><div class="marker" id="marker"></div></div>
     <p class="legend">اضغط كلمةً لتسمعها. والكلمة المسطَّرة بنقاط سمعها النموذج بوضوحٍ أقل، فتوقيتها أقلّ يقينًا.</p>
-    <div class="downloads"><span>نزّل التوقيت:</span>
-      <button data-format="json">JSON</button><button data-format="csv">CSV</button><button data-format="srt">SRT</button><button data-format="vtt">VTT</button><button data-format="segments">Quran.com segments</button>
-    </div>
+    <p class="downloads">نزّل التوقيت:
+      <button data-format="json">JSON</button> · <button data-format="csv">CSV</button> · <button data-format="srt">SRT</button> · <button data-format="vtt">VTT</button> · <button data-format="segments">Quran.com segments</button></p>
   </section>
 
   <footer>
+    <hr>
     النموذج <a href="https://huggingface.co/Abdou/quran-asr-tiny">quran-asr-tiny</a> (MIT). نصّ المصحف وخطّه من مجمع الملك فهد لطباعة المصحف الشريف.
     التلاوات وتوقيت الآيات من <a href="https://www.mp3quran.net">mp3quran.net</a>. الأداة مفتوحة المصدر من <a href="https://voltarostudio.com">Voltaro Studio</a>.
+    <div dir="ltr" style="text-align:right">Word-by-word timings for any Quran recitation, made in your browser.</div>
   </footer>
 </main>
+
+<div class="player" id="player" hidden><div>
+  <button class="play" id="play" aria-label="شغّل"><svg viewBox="0 0 16 16" id="play-icon"><path d="M4 2.5v11l9-5.5z"/></svg></button>
+  <div class="track" id="track"><i id="fill"></i></div>
+  <span class="time" id="time" dir="ltr">٠:٠٠ / ٠:٠٠</span>
+  <audio id="audio" preload="auto"></audio>
+</div></div>
 
 <script type="module">
 import { FORMATS, FRAME } from "./aligner.js";
@@ -172,14 +168,27 @@ const loadWords = (r) => (wordsCache[r] ??= fetch(`../quran_word_align/data/${r}
 
 // ---- choosing the recording
 let tab = "mp3quran", file = null, reads = [];
-document.querySelectorAll("[role=tab]").forEach((b) => b.addEventListener("click", () => {
+document.querySelectorAll(".switch").forEach((b) => b.addEventListener("click", () => {
   tab = b.dataset.tab;
-  document.querySelectorAll("[role=tab]").forEach((x) => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll(".switch").forEach((x) => (x.hidden = x.dataset.tab === tab));
   document.querySelectorAll("[data-panel]").forEach((p) => (p.hidden = p.dataset.panel !== tab));
+  document.querySelectorAll(".say select").forEach(fit);
 }));
+// A select in the sentence is as wide as the choice it shows.
+const ruler = document.createElement("span");
+ruler.style.cssText = "position:absolute;visibility:hidden;white-space:pre;";
+document.body.append(ruler);
+function fit(sel) {
+  const cs = getComputedStyle(sel);
+  ruler.style.font = cs.font;
+  ruler.textContent = sel.selectedOptions[0]?.textContent ?? "";
+  if (ruler.offsetWidth) sel.style.width = `${ruler.offsetWidth + 8}px`;
+}
+document.querySelectorAll(".say select").forEach((sel) => sel.addEventListener("change", () => fit(sel)));
+document.fonts.ready.then(() => document.querySelectorAll(".say select").forEach(fit));
 const surahs = await fetch("surahs.json").then((x) => x.json());
 for (const id of ["#surah-online", "#surah-file"]) {
-  $(id).innerHTML = surahs.map((n, i) => `<option value="${i + 1}">${digits(i + 1)}. ${n}</option>`).join("");
+  $(id).innerHTML = surahs.map((n, i) => `<option value="${i + 1}">${n}</option>`).join("");
 }
 $("#surah-online").value = "1";
 fetch(`${API}/ayat_timing/reads`).then((x) => x.json()).then((list) => {
@@ -187,9 +196,11 @@ fetch(`${API}/ayat_timing/reads`).then((x) => x.json()).then((list) => {
     .filter((r) => r.riwayah);
   $("#reader").innerHTML = reads.map((r) => `<option value="${r.id}">${r.name}${r.riwayah === "hafs" ? "" : ` (${r.rewaya})`}</option>`).join("");
   $("#reader").value = String(reads.find((r) => r.id === 118)?.id ?? reads[0].id);
-}).catch(() => { $("#reader").innerHTML = "<option>تعذّر جلب القرّاء</option>"; });
+  fit($("#reader"));
+}).catch(() => { $("#reader").innerHTML = "<option>تعذّر جلب القرّاء</option>"; fit($("#reader")); });
+fit($("#surah-online"));
 
-const pick = (f) => { file = f; $("#file-name").textContent = f ? f.name : ""; };
+const pick = (f) => { file = f; $("#file-name").textContent = f ? f.name : "تلاوةً من جهازك"; };
 $("#drop").addEventListener("click", () => $("#file").click());
 $("#drop").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") $("#file").click(); });
 $("#file").addEventListener("change", (e) => pick(e.target.files[0]));
@@ -199,17 +210,15 @@ $("#drop").addEventListener("drop", (e) => { e.preventDefault(); $("#drop").clas
 
 // ---- progress
 const stage = (name, progress) => {
-  const order = ["audio", "model", "hear", "find", "align", "done"];
   document.querySelectorAll(".stage").forEach((li) => {
-    const i = order.indexOf(li.dataset.stage), j = order.indexOf(name);
-    li.classList.toggle("done", i < j); li.classList.toggle("on", i === j);
-    li.classList.toggle("busy", i === j && progress == null);
-    const bar = li.querySelector(".bar i"), label = li.querySelector("b");
-    if (i < j) { bar.style.width = "100%"; label.textContent = "✓"; }
-    else if (i > j) { bar.style.width = "0"; label.textContent = ""; }
-    else if (progress != null) { bar.style.width = `${Math.round(progress * 100)}%`; label.textContent = `${digits(Math.round(progress * 100))}٪`; }
-    else { bar.style.width = ""; label.textContent = ""; }
+    const on = li.dataset.stage === name;
+    li.classList.toggle("on", on);
+    if (on) li.querySelector("b").textContent = progress == null ? "" : `${digits(Math.round(progress * 100))}٪`;
   });
+  const line = $("#line");
+  line.classList.toggle("busy", progress == null && name !== "done");
+  line.querySelector("i").style.width = progress == null ? "" : `${Math.round(progress * 100)}%`;
+  if (name === "done") $("#progress").hidden = true;
 };
 const fail = (msg) => { $("#error").textContent = msg; $("#error").hidden = false; $("#go").disabled = false; };
 
@@ -235,7 +244,7 @@ async function fetchWithProgress(url) {
 const worker = new Worker("worker.js", { type: "module" });
 let run = null;
 $("#go").addEventListener("click", async () => {
-  $("#error").hidden = true; $("#go").disabled = true; $("#progress").hidden = false; $("#result").hidden = true;
+  $("#error").hidden = true; $("#go").disabled = true; $("#progress").hidden = false; $("#result").hidden = true; $("#player").hidden = true; audio.pause();
   stage("audio", 0);
   try {
     let blob, surah, riwayah;
@@ -298,7 +307,7 @@ function show(result) {
   const audio = $("#audio");
   if (audio.src) URL.revokeObjectURL(audio.src);
   audio.src = URL.createObjectURL(blob);
-  $("#result").hidden = false;
+  $("#result").hidden = false; $("#player").hidden = false;
   current = null; inked = 0; mushaf.classList.remove("inking"); place(null);
   $("#result").scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -319,7 +328,7 @@ function place(item, paused = false) {
   marker.classList.add("on"); marker.classList.toggle("pause", paused);
   if (current?.ayah !== item.ayah) {
     const top = r.top, bottom = r.bottom, h = window.innerHeight;
-    if (top < 120 || bottom > h - 80) window.scrollBy({ top: top - h * 0.38, behavior: "smooth" });
+    if (top < 60 || bottom > h - 130) window.scrollBy({ top: top - h * 0.38, behavior: "smooth" });
   }
   current = item;
 }
@@ -335,6 +344,25 @@ function tick() {
 }
 audio.addEventListener("play", () => { $("#mushaf").classList.add("inking"); requestAnimationFrame(tick); });
 audio.addEventListener("seeked", tick);
+
+// ---- the player
+const clock = (t) => { t = Math.max(0, Math.floor(t || 0)); return digits(`${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`); };
+const PLAY = '<path d="M4 2.5v11l9-5.5z"/>', PAUSE = '<rect x="3" y="2.5" width="3.6" height="11" rx="1"/><rect x="9.4" y="2.5" width="3.6" height="11" rx="1"/>';
+const showTime = () => {
+  $("#time").textContent = `${clock(audio.currentTime)} / ${clock(audio.duration)}`;
+  $("#fill").style.width = audio.duration ? `${(audio.currentTime / audio.duration) * 100}%` : "0";
+};
+$("#play").addEventListener("click", () => (audio.paused ? audio.play() : audio.pause()));
+audio.addEventListener("play", () => { $("#play-icon").innerHTML = PAUSE; $("#play").setAttribute("aria-label", "أوقف"); });
+audio.addEventListener("pause", () => { $("#play-icon").innerHTML = PLAY; $("#play").setAttribute("aria-label", "شغّل"); });
+audio.addEventListener("timeupdate", showTime);
+audio.addEventListener("loadedmetadata", showTime);
+const seek = (e) => {
+  const r = $("#track").getBoundingClientRect();
+  if (audio.duration) audio.currentTime = Math.min(1, Math.max(0, (r.right - e.clientX) / r.width)) * audio.duration;
+};
+$("#track").addEventListener("pointerdown", (e) => { $("#track").setPointerCapture(e.pointerId); seek(e); });
+$("#track").addEventListener("pointermove", (e) => { if (e.buttons) seek(e); });
 addEventListener("resize", () => current && place(current));
 
 // ---- downloads
