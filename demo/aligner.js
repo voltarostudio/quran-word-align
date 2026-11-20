@@ -367,3 +367,47 @@ export const FORMATS = {
     return { verse_key: `${surah}:${a}`, timestamp_from: s, timestamp_to: e, segments: ws.map((w) => [w[0], w[1], w[2]]) };
   }) }),
 };
+
+// ---- which surah a recording is (as quran_word_align/detect.py: detect_surah)
+const HEAR_SECONDS = 180;
+function heardLetters(rec, frames) {
+  const V = VOCAB.length, out = [];
+  let prev = -1;
+  for (let t = 0; t < Math.min(frames, rec.T); t++) {
+    let best = 0, bv = -Infinity;
+    for (let v = 0; v < V; v++) { const x = rec.lp[t * V + v]; if (x > bv) { bv = x; best = v; } }
+    if (best !== prev && best !== BLANK && best !== SPACE) out.push(best);
+    prev = best;
+  }
+  return out;
+}
+const triples = (seq, n = seq.length) => {
+  const m = new Map();
+  for (let i = 0; i + 2 < n; i++) { const k = (seq[i] * 32 + seq[i + 1]) * 32 + seq[i + 2]; m.set(k, (m.get(k) || 0) + 1); }
+  return m;
+};
+const norm2 = (m) => Math.sqrt([...m.values()].reduce((s, v) => s + v * v, 0));
+const surahLettersCache = new Map();
+function surahLetters(hafsWords, surah) {
+  if (!surahLettersCache.has(surah)) {
+    const out = [];
+    for (let n = 1; hafsWords[`${surah}:${n}`]; n++) for (const [, text] of hafsWords[`${surah}:${n}`]) out.push(...letters(text));
+    surahLettersCache.set(surah, out);
+  }
+  return surahLettersCache.get(surah);
+}
+/** Surahs by the letter triples their opening shares with the recording's, best first: [[score, surah], ...]. */
+export function detectSurah(rec, hafsWords) {
+  const heard = heardLetters(rec, Math.round(HEAR_SECONDS / FRAME));
+  const mine = triples(heard), nm = norm2(mine);
+  const scores = [];
+  for (let s = 1; s <= 114; s++) {
+    const text = surahLetters(hafsWords, s);
+    const theirs = triples(text, Math.min(text.length, Math.floor(heard.length * 1.3) + 30));
+    let dot = 0;
+    for (const [k, v] of mine) dot += v * (theirs.get(k) || 0);
+    const nt = norm2(theirs);
+    scores.push([nm && nt ? dot / (nm * nt) : 0, s]);
+  }
+  return scores.sort((a, b) => b[0] - a[0]);
+}

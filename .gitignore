@@ -4,3 +4,4 @@ aligned/
 *.egg-info/
 .claude/
 eval/RESULTS.json
+eval/DETECT.json

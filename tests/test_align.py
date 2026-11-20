@@ -118,3 +118,14 @@ def test_formats():
     assert "<00:00:01.500>هُوَ" in out["vtt"]
     seg = json.loads(out["segments"])["verse_timings"][0]
     assert seg["verse_key"] == "112:1" and seg["segments"][0] == [1, 1000, 1500]
+
+
+def test_detect_surah_tells_apart_surahs_that_open_alike():
+    from quran_word_align.detect import detect_surah
+    W = A.hafs_words()
+    # Al Imran opens as al-Baqarah does (الم), then goes its own way.
+    flat = [A.letters(t) for key in [(1, 1), (3, 1), (3, 2), (3, 3)] for _, t in W[key]]
+    spans, _, frames = speak(flat)
+    (score, surah), (_, second) = detect_surah(synthetic(spans, frames))[:2]
+    assert surah == 3
+    assert second != surah and score > 0.5

@@ -1,6 +1,6 @@
 // Runs the model and the alignment off the page's thread, so the page stays smooth.
 import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.wasm.min.mjs";
-import { Model, loudness, findAyahs, alignAyahs, setBasmala } from "./aligner.js";
+import { Model, loudness, findAyahs, alignAyahs, setBasmala, detectSurah } from "./aligner.js";
 
 const MODEL_URL = "https://huggingface.co/Abdou/quran-asr-tiny/resolve/main/model.int8.onnx";
 ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/";
@@ -33,17 +33,22 @@ async function loadModel() {
 
 onmessage = async ({ data }) => {
   try {
-    const { wave, surah, words, hafs } = data;
+    let { wave, surah, words, hafs } = data;
     setBasmala(hafs);
     const m = await loadModel();
     say("hear", 0);
     const lp = await m.logProbs(wave, (p) => say("hear", p));
     const rec = { lp: lp.data, T: lp.T, db: loudness(wave) };
+    if (!surah) {   // which surah: the one whose opening the recording's opening is closest to
+      const [[score, best], [second]] = detectSurah(rec, hafs);
+      surah = best;
+      postMessage({ type: "surah", surah, score, second });
+    }
     say("find", 0);
     const found = findAyahs(surah, rec, words, (p) => say("find", p));
     say("align", null);
     const result = alignAyahs(surah, rec, found, words, 1.0);
-    postMessage({ type: "done", result });
+    postMessage({ type: "done", result, surah });
   } catch (e) {
     postMessage({ type: "error", message: String(e?.message || e) });
   }

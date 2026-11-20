@@ -1,6 +1,7 @@
 """quran-word-align: word timings for a Quran recitation.
 
-  quran-word-align file AUDIO SURAH              a recording of a whole surah, of your own
+  quran-word-align file AUDIO [SURAH]            a recording of a whole surah, of your own (the
+                                                 surah is found from the recording if not given)
   quran-word-align reads                         mp3quran.net recordings, with their ids
   quran-word-align mp3quran READ_ID [SURAH...]   align mp3quran.net recordings
 
@@ -18,7 +19,8 @@ import time
 import urllib.error
 import urllib.request
 
-from .align import RIWAYAT, Model, align_recording, mushaf_words
+from .align import RIWAYAT, Model, Recording, align_ayahs, align_recording, find_ayahs, mushaf_words
+from .detect import detect_surah
 from .formats import EXTENSIONS, FORMATS
 
 API = "https://www.mp3quran.net/api/v3"
@@ -91,15 +93,24 @@ def mp3quran(read_id: int, surahs: list[int], out: Path, ayah_timings: bool, for
         write(out, surah, result, words, formats)
 
 
-def own_file(audio: Path, surah: int, riwayah: str, timings: Path | None, out: Path, margin: float,
+def own_file(audio: Path, surah: int | None, riwayah: str, timings: Path | None, out: Path, margin: float,
              formats: list[str]) -> None:
-    """TIMINGS, if given: [{"ayah": 1, "start_ms": 0, "end_ms": 6100}, ...], the recording's ayah timings."""
+    """TIMINGS, if given: [{"ayah": 1, "start_ms": 0, "end_ms": 6100}, ...], the recording's ayah timings.
+    Without SURAH, the surah is the one whose opening the recording's opening is closest to."""
+    rec = Recording.hear(audio, Model())
+    if surah is None:
+        (score, surah), (second, other) = detect_surah(rec.lp)[:2]
+        print(f"{audio.name}: surah {surah} (letters shared with its opening {score:.2f}; next, surah {other}, {second:.2f})")
+        if score < 0.5 or score - second < 0.15:
+            print("  not sure: if it is not that surah, give the surah: quran-word-align file AUDIO SURAH")
     windows = None
     if timings:
         rows = json.loads(timings.read_text(encoding="utf-8"))
         windows = [(int(r["ayah"]), r["start_ms"] / 1000, r["end_ms"] / 1000) for r in rows]
     words = mushaf_words(riwayah)
-    write(out, surah, align_recording(surah, audio, words, Model(), windows, margin=margin), words, formats)
+    if windows is None:
+        windows = find_ayahs(surah, rec, words)
+    write(out, surah, align_ayahs(surah, rec, windows, words, margin), words, formats)
 
 
 def main() -> None:
@@ -114,7 +125,7 @@ def main() -> None:
 
     f = sub.add_parser("file", help="align a recording of a whole surah")
     f.add_argument("audio", type=Path)
-    f.add_argument("surah", type=int)
+    f.add_argument("surah", type=int, nargs="?", help="the surah (found from the recording if left out)")
     f.add_argument("--riwayah", choices=RIWAYAT, default="hafs")
     f.add_argument("--timings", type=Path, default=None,
                    help='the recording\'s ayah timings, if it has them: [{"ayah": 1, "start_ms": 0, "end_ms": 6100}, ...]')

@@ -142,7 +142,7 @@
 
   <section id="source">
     <h1 class="say" data-panel="mp3quran">اسمع سورة <select id="surah-online" aria-label="السورة"></select><br>بصوت <select id="reader" aria-label="القارئ"><option>…</option></select></h1>
-    <h1 class="say" data-panel="file" hidden>وقّت <span class="pickfile" id="drop" tabindex="0" role="button" aria-label="اختر ملفَّ التلاوة"><span id="file-name">تلاوةً من جهازك</span></span><br>لسورة <select id="surah-file" aria-label="السورة"></select><br>برواية <select id="riwayah" aria-label="الرواية"><option value="hafs">حفص</option><option value="warsh">ورش</option><option value="qalun">قالون</option></select></h1>
+    <h1 class="say" data-panel="file" hidden>وقّت <span class="pickfile" id="drop" tabindex="0" role="button" aria-label="اختر ملفَّ التلاوة"><span id="file-name">تلاوةً من جهازك</span></span><br>السورة <select id="surah-file" aria-label="السورة"></select><br>برواية <select id="riwayah" aria-label="الرواية"><option value="hafs">حفص</option><option value="warsh">ورش</option><option value="qalun">قالون</option></select></h1>
     <input type="file" id="file" accept="audio/*" hidden>
     <div class="act">
       <button class="go" id="go">ابدأ</button>
@@ -157,7 +157,7 @@
       <li class="stage" data-stage="audio"><span>قراءة التسجيل</span><b></b></li>
       <li class="stage" data-stage="model"><span>تنزيل النموذج (١٩ م.ب، مرةً واحدة)</span><b></b></li>
       <li class="stage" data-stage="hear"><span>الاستماع إلى التلاوة حرفًا حرفًا</span><b></b></li>
-      <li class="stage" data-stage="find"><span>تحديد مواضع الآيات</span><b></b></li>
+      <li class="stage" data-stage="find"><span id="find-label">تحديد مواضع الآيات</span><b></b></li>
       <li class="stage" data-stage="align"><span>مطابقة الكلمات</span><b></b></li>
     </ol>
     <div class="line" id="line"><i></i></div>
@@ -257,6 +257,9 @@ const surahs = await fetch("surahs.json").then((x) => x.json());
 for (const id of ["#surah-online", "#surah-file"]) {
   $(id).innerHTML = surahs.map((n, i) => `<option value="${i + 1}" data-num="${digits(i + 1)}">${n}</option>`).join("");
 }
+// For a file, the surah is found from the recording unless chosen.
+$("#surah-file").insertAdjacentHTML("afterbegin", '<option value="0">تُعرف من التلاوة</option>');
+$("#surah-file").value = "0";
 $("#surah-online").value = "1";
 fetch(`${API}/ayat_timing/reads`).then((x) => x.json()).then((list) => {
   reads = list.map((r) => ({ ...r, riwayah: Object.entries(RIWAYAT).find(([k]) => (r.rewaya || "").startsWith(k))?.[1] }))
@@ -267,7 +270,11 @@ fetch(`${API}/ayat_timing/reads`).then((x) => x.json()).then((list) => {
 }).catch(() => { $("#reader").innerHTML = "<option>تعذّر جلب القرّاء</option>"; fit($("#reader")); });
 fit($("#surah-online")); fit($("#surah-file")); fit($("#riwayah"));
 
-const pick = (f) => { file = f; $("#file-name").textContent = f ? f.name : "تلاوةً من جهازك"; };
+const pick = (f) => {
+  file = f; $("#file-name").textContent = f ? f.name : "تلاوةً من جهازك";
+  if (found) { $("#surah-file").value = "0"; fit($("#surah-file")); found = false; }   // a new file: its surah is found again
+};
+let found = false;
 $("#drop").addEventListener("click", () => $("#file").click());
 $("#drop").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") $("#file").click(); });
 $("#file").addEventListener("change", (e) => pick(e.target.files[0]));
@@ -327,6 +334,7 @@ $("#go").addEventListener("click", async () => {
     }
     const [wave, words, hafs] = await Promise.all([decode(blob), loadWords(riwayah), loadWords("hafs")]);
     run = { blob, surah, riwayah, words };
+    $("#find-label").textContent = "تحديد مواضع الآيات";
     worker.postMessage({ wave, surah, words, hafs }, [wave.buffer]);
   } catch (e) {
     fail("تعذّر قراءة هذا التسجيل. جرّب ملفًّا آخر (mp3 أو m4a أو wav).");
@@ -335,8 +343,13 @@ $("#go").addEventListener("click", async () => {
 
 worker.onmessage = ({ data }) => {
   if (data.type === "progress") stage(data.stage, data.progress);
+  else if (data.type === "surah") {
+    run.surah = data.surah;
+    $("#surah-file").value = String(data.surah); fit($("#surah-file")); found = true;
+    $("#find-label").textContent = `هي سورة ${surahs[data.surah - 1]}. تحديد مواضع الآيات`;
+  }
   else if (data.type === "error") fail(`تعذّر إكمال المطابقة: ${data.message}`);
-  else if (data.type === "done") { stage("done"); $("#go").disabled = false; show(data.result); }
+  else if (data.type === "done") { stage("done"); $("#go").disabled = false; run.surah = data.surah; show(data.result); }
 };
 
 // ---- the words lighting up

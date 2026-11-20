@@ -17,7 +17,11 @@ word of the mushaf as the reciter reads it.
 ## What it does
 
 - **Any recording of a whole surah.** It finds the ayahs itself; ayah timings are optional.
-- **Hafs, Warsh and Qalun**, each on the King Fahd Complex's own text of that riwayah.
+- **It knows the surah**: leave it out and it is found from the recording's opening (right for all
+  224 recordings we tried, [eval/DETECT.md](eval/DETECT.md)).
+- **Hafs, Warsh and Qalun**, each on the King Fahd Complex's own text of that riwayah. The riwayah you
+  say: it cannot be told reliably from the sound, since the riwayat share the mushaf's letters and the
+  model leans to Hafs where they differ ([eval/DETECT.md](eval/DETECT.md)).
 - **A confidence for every word**, so you know which timings to trust and which to check.
 - **Repeats**: a reciter who goes back and reads words again is followed, and the words are listed
   again in the order heard.
@@ -33,6 +37,7 @@ Needs Python 3.10+ and [ffmpeg](https://ffmpeg.org).
 pip install git+https://github.com/voltarostudio/quran-word-align
 
 quran-word-align file yasin.mp3 36                      # a recording of your own (Hafs)
+quran-word-align file recitation.mp3                    # which surah it is, found from the recording
 quran-word-align file mulk.mp3 67 --riwayah warsh       # Warsh, or qalun
 quran-word-align file fatiha.mp3 1 --format json,srt,vtt
 quran-word-align reads                                  # mp3quran.net recordings, with their ids
@@ -167,7 +172,9 @@ belong to their sources (mp3quran.net and others); this repository holds none.
 ### ما تفعله
 
 - **تقبل تسجيل أي سورةٍ كاملة،** وتجد مواضع الآيات بنفسها، فلا تحتاج إلى توقيتٍ للآيات.
-- **تعرف روايات حفص وورش وقالون،** على نصّ مجمع الملك فهد لكل رواية.
+- **تعرف السورة بنفسها** إن لم تذكرها، من أول التلاوة. أصابت في التسجيلات الـ٢٢٤ التي جرّبناها كلها.
+- **تدعم روايات حفص وورش وقالون،** على نصّ مجمع الملك فهد لكل رواية. والرواية تذكرها أنت: لا تُعرف من
+  الصوت معرفةً يُوثق بها، لأن الروايات تشترك في حروف المصحف، والنموذج يميل إلى حفص حيث تختلف.
 - **تعطي كلَّ كلمةٍ درجةَ ثقة** من صفرٍ إلى واحد، فتعرف أيَّ توقيتٍ تطمئن إليه وأيَّه تراجعه.
 - **تتابع القارئ إن رجع** فأعاد كلمات، فتذكر الكلمات المعادة مرةً ثانية بترتيب سماعها.
 - **تراعي الوقف:** تبدأ الكلمة بعد الوقف حين يعود الصوت، وتنتهي الكلمة قبله حين يسكت القارئ.
@@ -180,6 +187,7 @@ belong to their sources (mp3quran.net and others); this repository holds none.
 ```sh
 pip install git+https://github.com/voltarostudio/quran-word-align
 quran-word-align file yasin.mp3 36                    # تلاوة سورة يس من جهازك
+quran-word-align file recitation.mp3                  # تعرف الأداة السورة من التلاوة
 quran-word-align file mulk.mp3 67 --riwayah warsh     # برواية ورش، أو qalun لقالون
 quran-word-align mp3quran 118 1 112                   # الفاتحة والإخلاص من تسجيلات mp3quran
 ```
