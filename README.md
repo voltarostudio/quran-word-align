@@ -101,9 +101,11 @@ only; the numbers are in [eval/RESULTS.md](eval/RESULTS.md).
 - **Confidence tracks accuracy**: of the words above 0.85 (about half), 90% agree with Quran.com
   within a quarter second; of those under 0.3 (under 1%), 15%.
 
-What is not settled: in flowing speech, our word starts run on average 0.1 s later than Quran.com's
-(0.2 s for Abdul Basit). We have not yet checked by ear which of the two is nearer to where a listener
-hears the word begin. Recordings of only part of a surah, or of several surahs in one file, are not
+In flowing speech, our word starts run on average 0.1 s later than Quran.com's (0.2 s for Abdul
+Basit). In one blind listening test (Abdul Basit's al-Fatiha cut word by word, once at our starts and
+once 0.1 s earlier, one listener), our cut sounded better: the words began whole, without a piece of
+the word before. One listener and one surah is not proof, so treat this as a hint, not a settled
+answer. Recordings of only part of a surah, or of several surahs in one file, are not
 supported yet.
 
 ## How it works
@@ -202,7 +204,9 @@ quran-word-align mp3quran 118 1 112                   # الفاتحة والإ�
   تقلّ ثقته عن ٠٫٣.
 
 وما لم نحسمه بعد: في الكلام المتصل تتأخر بداياتنا عن بدايات Quran.com عُشرَ ثانيةٍ في المتوسط (وخُمسَها عند
-عبد الباسط)، ولم نتحقق بالسمع أيُّهما أقرب إلى موضع ابتداء الكلمة. ولا تقبل الأداة بعدُ تسجيلًا لجزءٍ من
+عبد الباسط)، وفي اختبار سماعٍ أعمى واحد (فاتحة عبد الباسط مقطَّعةً كلمةً كلمة، مرةً عند بداياتنا ومرةً قبلها بعُشر ثانية،
+وسامعٌ واحد) كان تقطيعنا أحسن: بدأت الكلمات تامّةً بلا بقيةٍ من الكلمة التي قبلها. وسامعٌ واحدٌ في سورةٍ
+واحدة لا يحسم الأمر، فهو قرينةٌ لا برهان. ولا تقبل الأداة بعدُ تسجيلًا لجزءٍ من
 سورة، ولا تسجيلًا يجمع سورًا عدة.
 
 ### كيف تعمل
