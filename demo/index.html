@@ -36,9 +36,10 @@
 
   /* The form is a sentence: "listen to surah ___ recited by ___". */
   .say { font-size: clamp(27px, 7vw, 40px); line-height: 1.6; font-weight: 500; margin: 34px 0 0; letter-spacing: -.005em; }
-  .say select, .say .pickfile { font: inherit; color: var(--accent); background: transparent; border: 0; border-bottom: 2px dotted var(--accent);
+  .say select { display: none; }
+  .say .choice, .say .pickfile { font: inherit; color: var(--accent); background: transparent; border: 0; border-bottom: 2px dotted var(--accent);
     padding: 0 2px; margin: 0; border-radius: 0; appearance: none; -webkit-appearance: none; cursor: pointer; max-width: 100%; }
-  .say select:focus-visible, .say .pickfile:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .say .choice:focus-visible, .say .pickfile:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
   .say .pickfile.over { background: var(--mark); }
   .act { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-top: 26px; }
   .go { font: inherit; font-weight: 600; font-size: 17px; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 999px; padding: 12px 30px; cursor: pointer;
@@ -99,6 +100,36 @@
   .track i { position: absolute; top: 13px; bottom: 13px; right: 0; width: 0; background: var(--accent); border-radius: 2px; }
   .time { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: left; }
 
+  /* Our own picker: a small window with a search and the list, instead of the browser's menu. */
+  #picker { border: 0; padding: 0; background: transparent; width: min(440px, calc(100% - 32px)); max-height: min(620px, 78vh); overflow: visible; color: var(--ink); }
+  #picker::backdrop { background: rgba(11, 27, 30, .38); backdrop-filter: blur(3px); }
+  #picker[open] { animation: sheet .5s cubic-bezier(.3, 1.25, .4, 1); }
+  #picker[open]::backdrop { animation: fade .3s ease; }
+  @keyframes sheet { from { transform: translateY(28px) scale(.97); opacity: 0; } }
+  @keyframes fade { from { opacity: 0; } }
+  .sheet { background: var(--bg); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .35);
+    display: flex; flex-direction: column; max-height: min(620px, 78vh); overflow: hidden; }
+  .sheet header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 6px; }
+  .sheet h2 { margin: 0; font-size: 15px; font-weight: 500; color: var(--muted); }
+  .sheet .x { font: inherit; font-size: 15px; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 4px; }
+  #pick-q { margin: 6px 20px 10px; font: inherit; color: var(--ink); background: transparent; border: 0; border-bottom: 1px solid var(--line); padding: 8px 2px; outline: none; }
+  #pick-q:focus { border-bottom-color: var(--accent); }
+  #pick-list { overflow-y: auto; padding: 0 8px 12px; overscroll-behavior: contain; }
+  .opt { display: flex; gap: 12px; align-items: baseline; width: 100%; text-align: start; font: inherit; font-size: 17px; color: var(--ink); background: none; border: 0;
+    border-radius: 12px; padding: 10px 12px; cursor: pointer; transition: background .15s; }
+  .opt[data-num]::before { content: attr(data-num); color: var(--muted); font-size: 14px; min-width: 1.8em; }
+  .opt:hover, .opt:focus-visible { background: var(--soft); outline: none; }
+  .opt[aria-selected="true"] { color: var(--accent); font-weight: 600; }
+  .opt[aria-selected="true"]::after { content: "✓"; margin-inline-start: auto; }
+  .empty { color: var(--muted); padding: 14px 12px; font-size: 15px; }
+  @media (max-width: 600px) {
+    #picker { width: 100%; max-width: none; margin: auto 0 0; }
+    #picker[open] { animation-name: rise; }
+    @keyframes rise { from { transform: translateY(100%); } }
+    .sheet { border-radius: 24px 24px 0 0; border-bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
+  }
+  @media (prefers-reduced-motion: reduce) { #picker[open], #picker[open]::backdrop { animation: none; } }
+
   footer { margin-top: 48px; font-size: 13px; color: var(--muted); line-height: 1.9; }
   footer a { color: inherit; }
   [hidden] { display: none !important; }
@@ -149,6 +180,12 @@
   </footer>
 </main>
 
+<dialog id="picker"><div class="sheet">
+  <header><h2 id="pick-title"></h2><button class="x" id="pick-close" type="button">إغلاق</button></header>
+  <input id="pick-q" type="search" placeholder="ابحث" autocomplete="off">
+  <div id="pick-list" role="listbox"></div>
+</div></dialog>
+
 <div class="player" id="player" hidden><div>
   <button class="play" id="play" aria-label="شغّل"><svg viewBox="0 0 16 16" id="play-icon"><path d="M4 2.5v11l9-5.5z"/></svg></button>
   <div class="track" id="track"><i id="fill"></i></div>
@@ -172,33 +209,63 @@ document.querySelectorAll(".switch").forEach((b) => b.addEventListener("click", 
   tab = b.dataset.tab;
   document.querySelectorAll(".switch").forEach((x) => (x.hidden = x.dataset.tab === tab));
   document.querySelectorAll("[data-panel]").forEach((p) => (p.hidden = p.dataset.panel !== tab));
-  document.querySelectorAll(".say select").forEach(fit);
 }));
-// A select in the sentence is as wide as the choice it shows.
-const ruler = document.createElement("span");
-ruler.style.cssText = "position:absolute;visibility:hidden;white-space:pre;";
-document.body.append(ruler);
+// Each select in the sentence shows as a word that opens our picker; the select keeps the value.
+const norm = (t) => t.replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g, "").replace(/[أإآٱ]/g, "ا").replace(/ى/g, "ي").replace(/ة/g, "ه").toLowerCase();
+const western = (t) => t.replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+document.querySelectorAll(".say select").forEach((sel) => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "choice"; b.setAttribute("aria-haspopup", "dialog");
+  sel.after(b); sel.choice = b;
+  b.addEventListener("click", () => openPicker(sel));
+  sel.addEventListener("change", () => fit(sel));
+});
 function fit(sel) {
-  const cs = getComputedStyle(sel);
-  ruler.style.font = cs.font;
-  ruler.textContent = sel.selectedOptions[0]?.textContent ?? "";
-  if (ruler.offsetWidth) sel.style.width = `${ruler.offsetWidth + 8}px`;
+  sel.choice.textContent = sel.selectedOptions[0]?.textContent ?? "…";
+  sel.choice.setAttribute("aria-label", `${sel.getAttribute("aria-label")}: ${sel.choice.textContent}`);
 }
-document.querySelectorAll(".say select").forEach((sel) => sel.addEventListener("change", () => fit(sel)));
-document.fonts.ready.then(() => document.querySelectorAll(".say select").forEach(fit));
+const picker = $("#picker"), q = $("#pick-q"), list = $("#pick-list");
+let picking = null;
+function openPicker(sel) {
+  picking = sel;
+  $("#pick-title").textContent = sel.getAttribute("aria-label");
+  q.value = ""; q.hidden = sel.options.length < 10;
+  render();
+  picker.showModal();
+  list.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "center" });
+  if (!q.hidden && matchMedia("(hover: hover)").matches) q.focus(); else list.querySelector('[aria-selected="true"]')?.focus();
+}
+function render() {
+  const term = norm(western(q.value.trim()));
+  list.innerHTML = "";
+  for (const o of picking.options) {
+    if (term && !norm(o.textContent).includes(term) && o.value !== term) continue;
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "opt"; b.setAttribute("role", "option"); b.textContent = o.textContent;
+    if (o.dataset.num) b.dataset.num = o.dataset.num;
+    b.setAttribute("aria-selected", String(o.value === picking.value));
+    b.addEventListener("click", () => { picking.value = o.value; picking.dispatchEvent(new Event("change")); picker.close(); picking.choice.focus(); });
+    list.append(b);
+  }
+  if (!list.children.length) list.innerHTML = '<p class="empty">لا نتيجة.</p>';
+}
+q.addEventListener("input", render);
+q.addEventListener("keydown", (e) => { if (e.key === "Enter") list.querySelector(".opt")?.click(); });
+$("#pick-close").addEventListener("click", () => picker.close());
+picker.addEventListener("click", (e) => { if (e.target === picker) picker.close(); });
 const surahs = await fetch("surahs.json").then((x) => x.json());
 for (const id of ["#surah-online", "#surah-file"]) {
-  $(id).innerHTML = surahs.map((n, i) => `<option value="${i + 1}">${n}</option>`).join("");
+  $(id).innerHTML = surahs.map((n, i) => `<option value="${i + 1}" data-num="${digits(i + 1)}">${n}</option>`).join("");
 }
 $("#surah-online").value = "1";
 fetch(`${API}/ayat_timing/reads`).then((x) => x.json()).then((list) => {
   reads = list.map((r) => ({ ...r, riwayah: Object.entries(RIWAYAT).find(([k]) => (r.rewaya || "").startsWith(k))?.[1] }))
-    .filter((r) => r.riwayah);
+    .filter((r) => r.riwayah).sort((a, b) => a.name.localeCompare(b.name, "ar"));
   $("#reader").innerHTML = reads.map((r) => `<option value="${r.id}">${r.name}${r.riwayah === "hafs" ? "" : ` (${r.rewaya})`}</option>`).join("");
   $("#reader").value = String(reads.find((r) => r.id === 118)?.id ?? reads[0].id);
   fit($("#reader"));
 }).catch(() => { $("#reader").innerHTML = "<option>تعذّر جلب القرّاء</option>"; fit($("#reader")); });
-fit($("#surah-online"));
+fit($("#surah-online")); fit($("#surah-file")); fit($("#riwayah"));
 
 const pick = (f) => { file = f; $("#file-name").textContent = f ? f.name : "تلاوةً من جهازك"; };
 $("#drop").addEventListener("click", () => $("#file").click());
