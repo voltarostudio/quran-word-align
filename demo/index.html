@@ -14,22 +14,24 @@
   @font-face { font-family: "KFGQPC Qalun"; src: url("fonts/kfgqpc_qalun_v30.ttf") format("truetype"); font-display: swap; }
 
   :root {
-    --bg: #f6f3ec; --surface: #fffdf8; --ink: #1f1d1a; --muted: #6e675c; --line: #e4ddd0;
-    --accent: #1f6f5c; --accent-ink: #ffffff; --mark: #d8eadf; --mark-strong: #b7d9c6; --warn: #b2621a;
+    /* Midad's colours (sakina): sand, paper, ink, date, dune, palm */
+    --bg: #F6F1E7; --surface: #FFFDF8; --ink: #1E2A2B; --muted: #7A5A3A; --line: #EDE3CF;
+    --accent: #2F6B5A; --accent-ink: #FFFDF8; --mark: #E3EFE9; --mark-strong: #C9DFD4; --warn: #9C3D2E;
     --shadow: 0 1px 2px rgba(40, 30, 10, .06), 0 8px 24px rgba(40, 30, 10, .06);
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #12110f; --surface: #1b1a17; --ink: #efe9dd; --muted: #a59d8f; --line: #2f2c27;
-      --accent: #5fbf9f; --accent-ink: #0d1f19; --mark: #1f3a31; --mark-strong: #2b5546; --warn: #e3a35f;
+      /* Midad's night (naqsh): night, ink teal, frame, ivory, palm at night */
+      --bg: #0B2B31; --surface: #0E3B43; --ink: #EDE6D6; --muted: #A7B5AF; --line: #1F4B52;
+      --accent: #6FB59A; --accent-ink: #0B2B31; --mark: #1F4B52; --mark-strong: #2A5D63; --warn: #E0A07A;
       --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
-    --bg: #12110f; --surface: #1b1a17; --ink: #efe9dd; --muted: #a59d8f; --line: #2f2c27;
-    --accent: #5fbf9f; --accent-ink: #0d1f19; --mark: #1f3a31; --mark-strong: #2b5546; --warn: #e3a35f;
+    --bg: #0B2B31; --surface: #0E3B43; --ink: #EDE6D6; --muted: #A7B5AF; --line: #1F4B52;
+    --accent: #6FB59A; --accent-ink: #0B2B31; --mark: #1F4B52; --mark-strong: #2A5D63; --warn: #E0A07A;
     --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
     color-scheme: dark;
   }
@@ -76,6 +78,11 @@
   .w.low { text-decoration: underline dotted color-mix(in srgb, var(--warn) 70%, transparent); text-underline-offset: .35em; }
   .w.untimed { color: var(--muted); }
   .w.now { color: var(--accent); }
+  /* Ink: once the recitation plays, the words still to come are faint, and each is inked as it is read. */
+  .mushaf.inking .w { color: color-mix(in srgb, var(--ink) 28%, transparent); transition: color .9s cubic-bezier(.2, .7, .2, 1); }
+  .mushaf.inking .w.read { color: var(--ink); }
+  .mushaf.inking .w.now { color: var(--accent); transition-duration: .35s; }
+  .mushaf.inking .w.untimed { color: var(--muted); }
   .num { color: var(--muted); }
   .marker { position: absolute; z-index: 0; top: 0; right: 0; height: 0; width: 0; background: var(--mark); border-radius: 10px; pointer-events: none; opacity: 0;
     transition: transform .42s cubic-bezier(.34, 1.4, .64, 1), width .42s cubic-bezier(.34, 1.4, .64, 1), height .3s ease, opacity .35s ease; }
@@ -90,7 +97,7 @@
   footer { margin-top: 36px; font-size: 13px; color: var(--muted); }
   footer a, header a { color: var(--accent); }
   [hidden] { display: none !important; }
-  @media (prefers-reduced-motion: reduce) { .marker, .stage .bar i, .go { transition: none; } .stage.busy .bar i { animation: none; width: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .marker, .stage .bar i, .go, .mushaf.inking .w { transition: none; } .stage.busy .bar i { animation: none; width: 100%; } }
 </style>
 </head>
 <body>
@@ -257,7 +264,12 @@ worker.onmessage = ({ data }) => {
 };
 
 // ---- the words lighting up
-let timeline = [], spans = new Map(), current = null;
+let timeline = [], spans = new Map(), current = null, inked = 0;
+// Words before position `at` of the timeline are read: ink them; words after it, unink them (after a seek back).
+function ink(at) {
+  for (; inked < at; inked++) spans.get(timeline[inked].key)?.classList.add("read");
+  for (; inked > at; inked--) spans.get(timeline[inked - 1].key)?.classList.remove("read");
+}
 function show(result) {
   const { surah, riwayah, words, blob } = run;
   run.result = result;
@@ -287,7 +299,7 @@ function show(result) {
   if (audio.src) URL.revokeObjectURL(audio.src);
   audio.src = URL.createObjectURL(blob);
   $("#result").hidden = false;
-  current = null; place(null);
+  current = null; inked = 0; mushaf.classList.remove("inking"); place(null);
   $("#result").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -316,11 +328,12 @@ function tick() {
   let lo = 0, hi = timeline.length - 1, at = -1;
   while (lo <= hi) { const m = (lo + hi) >> 1; if (timeline[m].start <= t) { at = m; lo = m + 1; } else hi = m - 1; }
   const item = at >= 0 ? timeline[at] : null;
+  ink(Math.max(at, 0));
   if (item?.key !== current?.key) place(item, item && t > item.end + 0.25);
   else if (item) marker.classList.toggle("pause", t > item.end + 0.25);
   if (!audio.paused) requestAnimationFrame(tick);
 }
-audio.addEventListener("play", () => requestAnimationFrame(tick));
+audio.addEventListener("play", () => { $("#mushaf").classList.add("inking"); requestAnimationFrame(tick); });
 audio.addEventListener("seeked", tick);
 addEventListener("resize", () => current && place(current));
 
