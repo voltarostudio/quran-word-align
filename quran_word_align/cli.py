@@ -1,7 +1,8 @@
 """quran-word-align: word timings for a Quran recitation.
 
-  quran-word-align file AUDIO [SURAH]            a recording of a whole surah, of your own (the
-                                                 surah is found from the recording if not given)
+  quran-word-align file AUDIO [SURAH]            a recording of your own: a surah, part of one, or
+                                                 several in a row (where it begins is found if not given)
+  quran-word-align ayahs FOLDER                  one file per ayah, named SSSAAA.mp3 (as everyayah.com)
   quran-word-align reads                         mp3quran.net recordings, with their ids
   quran-word-align mp3quran READ_ID [SURAH...]   align mp3quran.net recordings
 
@@ -14,20 +15,23 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 import time
 import urllib.error
 import urllib.request
 
-from .align import RIWAYAT, Model, Recording, align_ayahs, align_recording, find_ayahs, mushaf_words
-from .detect import detect_surah
+from .align import RIWAYAT, Model, Recording, align_ayahs, align_recording, follow, mushaf_words, next_words
+from .detect import locate
 from .formats import EXTENSIONS, FORMATS
 
 API = "https://www.mp3quran.net/api/v3"
 CACHE = Path.home() / ".cache" / "quran-word-align" / "audio"
 USER_AGENT = "quran-word-align (github.com/voltarostudio/quran-word-align)"
 # mp3quran's names of the riwayat this tool has the mushaf of.
-MP3QURAN_RIWAYAT = {"حفص": "hafs", "ورش": "warsh", "قالون": "qalun"}
+# "المصحف المجود" is Hafs, recited mujawwad (slow, with repeats, which the aligner follows).
+AUDIO_EXTENSIONS = {".mp3", ".m4a", ".wav", ".ogg", ".opus", ".flac", ".aac"}
+MP3QURAN_RIWAYAT = {"حفص": "hafs", "ورش": "warsh", "قالون": "qalun", "المصحف المجود": "hafs"}
 
 
 def _get(url: str) -> bytes:
@@ -93,24 +97,66 @@ def mp3quran(read_id: int, surahs: list[int], out: Path, ayah_timings: bool, for
         write(out, surah, result, words, formats)
 
 
-def own_file(audio: Path, surah: int | None, riwayah: str, timings: Path | None, out: Path, margin: float,
-             formats: list[str]) -> None:
-    """TIMINGS, if given: [{"ayah": 1, "start_ms": 0, "end_ms": 6100}, ...], the recording's ayah timings.
-    Without SURAH, the surah is the one whose opening the recording's opening is closest to."""
+def _median_confidence(result: dict) -> float:
+    confs = sorted(w[3] for ws in result.values() for w in ws)
+    return confs[len(confs) // 2] if confs else 0.0
+
+
+UNSURE = 0.4      # an ayah (or a surah run on into) whose words' median confidence is below this was not heard
+
+
+def own_file(audio: Path, surah: int | None, first: int | None, riwayah: str, timings: Path | None, out: Path,
+             margin: float, formats: list[str]) -> None:
+    """A recording of a surah, of part of one, or of several in a row (a juz). TIMINGS, if given:
+    [{"ayah": 1, "start_ms": 0, "end_ms": 6100}, ...], the recording's ayah timings (one surah).
+    Without SURAH, where the recording begins is found from what is heard."""
     rec = Recording.hear(audio, Model())
-    if surah is None:
-        (score, surah), (second, other) = detect_surah(rec.lp)[:2]
-        print(f"{audio.name}: surah {surah} (letters shared with its opening {score:.2f}; next, surah {other}, {second:.2f})")
-        if score < 0.5 or score - second < 0.15:
-            print("  not sure: if it is not that surah, give the surah: quran-word-align file AUDIO SURAH")
-    windows = None
+    words = mushaf_words(riwayah)
+    located = surah is None
+    if located:
+        (score, surah, ayah), *rest = locate(rec.lp)
+        print(f"{audio.name}: begins at {surah}:{ayah} (letters shared {score:.2f})")
+        first = max(1, ayah - 1)          # neighbouring ayahs score alike: begin one early, drop it if not heard
+        if score < 0.5:
+            print("  not sure: if that is wrong, give the surah: quran-word-align file AUDIO SURAH [--from-ayah N]")
+    first = first or 1
     if timings:
         rows = json.loads(timings.read_text(encoding="utf-8"))
-        windows = [(int(r["ayah"]), r["start_ms"] / 1000, r["end_ms"] / 1000) for r in rows]
+        windows = {surah: [(int(r["ayah"]), r["start_ms"] / 1000, r["end_ms"] / 1000) for r in rows]}
+    else:
+        windows = follow(rec, words, surah, first)
+    for i, (s, found) in enumerate(windows.items()):
+        result = align_ayahs(s, rec, found, words, margin, then=None if timings else next_words(s, words))
+        if i == 0 and located:            # ayahs before the recording's real start
+            for n in sorted(result):
+                ws = result[n]
+                if sorted(w[3] for w in ws)[len(ws) // 2] >= UNSURE:
+                    break
+                del result[n]
+        if i > 0 and _median_confidence(result) < UNSURE:
+            break                         # what follows the last surah is not the next surah
+        write(out, s, result, words, formats)
+
+
+AYAH_FILE = re.compile(r"^(\d{3})(\d{3})$")
+
+
+def ayah_files(folder: Path, riwayah: str, out: Path, formats: list[str]) -> None:
+    """One recording per ayah, SSSAAA.<ext> (ayah 000, a basmala on its own, left out). Each ayah's
+    times are from the start of its own file."""
     words = mushaf_words(riwayah)
-    if windows is None:
-        windows = find_ayahs(surah, rec, words)
-    write(out, surah, align_ayahs(surah, rec, windows, words, margin), words, formats)
+    model = Model()
+    by_surah: dict[int, dict] = {}
+    files = sorted(p for p in folder.iterdir() if AYAH_FILE.match(p.stem) and p.suffix.lower() in AUDIO_EXTENSIONS)
+    for path in files:
+        surah, ayah = (int(x) for x in AYAH_FILE.match(path.stem).groups())
+        if ayah == 0 or (surah, ayah) not in words:
+            continue
+        rec = Recording.hear(path, model)
+        result = align_ayahs(surah, rec, [(ayah, 0.0, rec.seconds)], words, margin=0.0)
+        by_surah.setdefault(surah, {}).update(result)
+    for surah, result in sorted(by_surah.items()):
+        write(out, surah, dict(sorted(result.items(), key=lambda kv: int(kv[0]))), words, formats)
 
 
 def main() -> None:
@@ -125,12 +171,17 @@ def main() -> None:
 
     f = sub.add_parser("file", help="align a recording of a whole surah")
     f.add_argument("audio", type=Path)
-    f.add_argument("surah", type=int, nargs="?", help="the surah (found from the recording if left out)")
+    f.add_argument("surah", type=int, nargs="?", help="the surah it begins with (found from the recording if left out)")
+    f.add_argument("--from-ayah", type=int, default=None, help="the ayah it begins at (default 1)")
     f.add_argument("--riwayah", choices=RIWAYAT, default="hafs")
     f.add_argument("--timings", type=Path, default=None,
                    help='the recording\'s ayah timings, if it has them: [{"ayah": 1, "start_ms": 0, "end_ms": 6100}, ...]')
     f.add_argument("--margin", type=float, default=1.0, help="seconds added to each side of an ayah's window")
     common(f, Path("aligned"))
+    y = sub.add_parser("ayahs", help="align a folder of one file per ayah, named SSSAAA.mp3 (as everyayah.com)")
+    y.add_argument("folder", type=Path)
+    y.add_argument("--riwayah", choices=RIWAYAT, default="hafs")
+    common(y, Path("aligned"))
     sub.add_parser("reads", help="list mp3quran.net recordings that have ayah timings")
     m = sub.add_parser("mp3quran", help="align mp3quran.net recordings")
     m.add_argument("read", type=int, help="the recording's id, from `reads`")
@@ -149,8 +200,10 @@ def main() -> None:
     elif args.command == "mp3quran":
         mp3quran(args.read, args.surahs or list(range(1, 115)), args.out or Path("aligned") / str(args.read),
                  args.ayah_timings, formats, args.resume)
+    elif args.command == "ayahs":
+        ayah_files(args.folder, args.riwayah, args.out, formats)
     else:
-        own_file(args.audio, args.surah, args.riwayah, args.timings, args.out, args.margin, formats)
+        own_file(args.audio, args.surah, args.from_ayah, args.riwayah, args.timings, args.out, args.margin, formats)
 
 
 if __name__ == "__main__":

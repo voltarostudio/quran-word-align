@@ -129,3 +129,23 @@ def test_detect_surah_tells_apart_surahs_that_open_alike():
     (score, surah), (_, second) = detect_surah(synthetic(spans, frames))[:2]
     assert surah == 3
     assert second != surah and score > 0.5
+
+
+def test_follow_runs_on_into_the_next_surah():
+    W = A.hafs_words()
+    keys = [(1, 1)] + [(112, n) for n in range(1, 5)] + [(1, 1)] + [(113, n) for n in range(1, 6)]
+    flat = [A.letters(t) for key in keys for _, t in W[key]]
+    spans, firsts, frames = speak(flat, gap=8)
+    rec = A.Recording(synthetic(spans, frames), np.zeros(frames))
+    found = A.follow(rec, W, 112)
+    assert {s: [a for a, _, _ in f] for s, f in found.items()} == {112: [1, 2, 3, 4], 113: [1, 2, 3, 4, 5]}
+    assert round(found[113][0][1] / A.FRAME) == firsts[4 + 15 + 4]      # after al-Ikhlas and the basmala
+
+
+def test_locate_finds_a_start_inside_a_surah():
+    from quran_word_align.detect import locate
+    W = A.hafs_words()
+    flat = [A.letters(t) for n in range(10, 16) for _, t in W[(36, n)]]
+    spans, _, frames = speak(flat)
+    _, surah, ayah = locate(synthetic(spans, frames))[0]
+    assert (surah, ayah) in [(36, 9), (36, 10), (36, 11)]

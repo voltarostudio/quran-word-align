@@ -309,18 +309,34 @@ FOLLOW_WINDOW = 60.0
 LETTERS_PER_SECOND = 16
 
 
-def find_ayahs(surah: int, rec: Recording, words: Words) -> list[tuple[int, float, float]]:
-    """Each ayah's place in a recording of the whole surah, found without ayah timings: (ayah,
-    start s, end s). The surah is followed a window at a time: the window is aligned with the ayahs
+def next_words(surah: int, words: Words) -> list[tuple[int, str]]:
+    """What a recording of several surahs has after `surah`: the basmala and the next surah's
+    opening, aligned as context so what follows the surah is not taken for a repeat of its end."""
+    if surah >= 114:
+        return []
+    opening = [w for n in (1, 2) for w in words.get((surah + 1, n), [])][: 2 * CONTEXT]
+    if surah + 1 == 9 or is_basmala(words.get((surah + 1, 1), [])):
+        return opening
+    return basmala_words() + opening
+
+
+def find_ayahs(surah: int, rec: Recording, words: Words, first: int = 1, start: float = 0.0,
+               then: list[tuple[int, str]] | None = None) -> list[tuple[int, float, float]]:
+    """Each ayah's place in a recording of the surah from ayah `first`, heard from `start` seconds,
+    found without ayah timings: (ayah, start s, end s). The recording may stop before the surah does.
+    The surah is followed a window at a time: the window is aligned with the ayahs
     from the first not yet placed, its path free to end after any word, and every ayah but the last
     it reached is placed; the next window starts a second before that last ayah. A window that places
     no ayah (one longer than the window) is doubled. The basmala before the surah, and anything else
-    before its first ayah, is taken in as context or filler."""
-    ayahs = sorted(n for (s, n) in words if s == surah)
+    before its first ayah, is taken in as context or filler; `then`, what follows the surah in the
+    recording (`next_words`), as context after its last ayah."""
+    ayahs = sorted(n for (s, n) in words if s == surah and n >= first)
     T = len(rec.lp)
-    basmala = [] if surah == 9 or is_basmala(words[(surah, ayahs[0])]) else basmala_words()
+    if not ayahs:
+        return []
+    basmala = [] if first > 1 or surah == 9 or is_basmala(words[(surah, ayahs[0])]) else basmala_words()
     found: dict[int, tuple[int, int]] = {}
-    k, t0, window = 0, 0, int(FOLLOW_WINDOW / FRAME)
+    k, t0, window = 0, int(start / FRAME), int(FOLLOW_WINDOW / FRAME)
     while k < len(ayahs):
         t1 = min(t0 + window, T)
         need = (t1 - t0) * FRAME * LETTERS_PER_SECOND
@@ -330,10 +346,11 @@ def find_ayahs(surah: int, rec: Recording, words: Words) -> list[tuple[int, floa
                 own.append((ayahs[j], w))
                 have += len(letters(w[1]))
             j += 1
-        before = basmala if k == 0 else words[(surah, ayahs[k - 1])][-CONTEXT:]
-        heard = align(rec.lp[t0:t1], [letters(t) for _, t in before] + [letters(w[1]) for _, w in own],
+        before = (basmala or words.get((surah, first - 1), [])[-CONTEXT:]) if k == 0 else words[(surah, ayahs[k - 1])][-CONTEXT:]
+        after = (then or []) if j == len(ayahs) else []
+        heard = align(rec.lp[t0:t1], [letters(t) for _, t in before] + [letters(w[1]) for _, w in own] + [letters(t) for _, t in after],
                       repeat_from=len(before), repeat_to=len(before) + len(own), free_end=True)
-        mine = [(own[h.word - len(before)][0], h) for h in heard if h.word >= len(before)]
+        mine = [(own[h.word - len(before)][0], h) for h in heard if len(before) <= h.word < len(before) + len(own)]
         if not mine:
             break
         reached = max(a for a, _ in mine)
@@ -357,8 +374,24 @@ def find_ayahs(surah: int, rec: Recording, words: Words) -> list[tuple[int, floa
     return [(a, found[a][0] * FRAME, found[a][1] * FRAME) for a in sorted(found)]
 
 
+def follow(rec: Recording, words: Words, surah: int, first: int = 1) -> dict[int, list[tuple[int, float, float]]]:
+    """A recording that begins at ayah `first` of `surah` and may run on into the surahs after it (a
+    juz, say): {surah: [(ayah, start s, end s), ...]}, each surah followed as `find_ayahs` does."""
+    out, start = {}, 0.0
+    while surah <= 114 and start < rec.seconds - 2.0:
+        found = find_ayahs(surah, rec, words, first, start, then=next_words(surah, words))
+        if not found:
+            break
+        out[surah] = found
+        last = max(n for (s, n) in words if s == surah)
+        if found[-1][0] != last:          # the recording stopped inside this surah
+            break
+        start, surah, first = found[-1][2], surah + 1, 1
+    return out
+
+
 def align_ayahs(surah: int, rec: Recording, windows: list[tuple[int, float, float]], words: Words,
-                margin: float) -> dict:
+                margin: float, then: list[tuple[int, str]] | None = None) -> dict:
     """Each ayah aligned in its window (ayah, start s, end s) widened by `margin`:
     {ayah: [[word, start_ms, end_ms, confidence], ...]} in the order heard."""
     length = rec.seconds
@@ -377,7 +410,7 @@ def align_ayahs(surah: int, rec: Recording, windows: list[tuple[int, float, floa
         # The window reaches into the ayahs either side: their nearest words are aligned too, so they
         # are not taken for this ayah's (or for a repeat of them), and then left out.
         before = words.get((surah, n - 1), [])[-CONTEXT:]
-        after = [] if basmala else words.get((surah, n + 1), [])[:CONTEXT]
+        after = [] if basmala else (words.get((surah, n + 1)) or then or [])[:CONTEXT]
         f0, f1 = int(a / FRAME), int(b / FRAME)
         heard = align(rec.lp[f0:f1], [letters(t) for _, t in before + tokens + after], repeat_from=len(before),
                       repeat_to=len(before) + len(tokens))

@@ -145,3 +145,48 @@ def detect(lp, riwayat=RIWAYAT) -> Guess:
     score, surah = detect_surah(lp)[0]
     riwayah, votes = detect_riwayah(lp, surah, riwayat)
     return Guess(surah, score, riwayah, votes)
+
+
+@lru_cache(maxsize=None)
+def _ayah_offsets(surah: int, riwayah: str = "hafs") -> tuple[tuple[int, int], ...]:
+    """(ayah, offset of its first letter in surah_letters)."""
+    words = mushaf_words(riwayah)
+    out, at, n = [], 0, 1
+    while (surah, n) in words:
+        out.append((n, at))
+        at += sum(len(letters(t)) for _, t in words[(surah, n)])
+        n += 1
+    return tuple(out)
+
+
+def _codes(seq):
+    import numpy as np
+    a = np.asarray(seq, dtype=np.int64)
+    return (a[:-2] * 32 + a[1:-1]) * 32 + a[2:] if len(a) > 2 else a[:0]
+
+
+def locate(lp, seconds: float = 60.0) -> list[tuple[float, int, int]]:
+    """Where in the Quran a recording begins: [(score, surah, ayah), ...], best first. As `detect_surah`,
+    but every ayah is a candidate start, so a recording of part of a surah, or of a juz, is placed."""
+    import numpy as np
+    heard = heard_letters(lp, int(seconds / 0.04))
+    mine = _codes(heard)
+    if not len(mine):
+        return []
+    keys, counts = np.unique(mine, return_counts=True)
+    norm = math.sqrt(float((counts.astype(float) ** 2).sum()))
+    length = int(len(heard) * 1.3) + 30
+    out = []
+    for surah in range(1, 115):
+        text = surah_letters(surah, "hafs") + (surah_letters(surah + 1, "hafs") if surah < 114 else ())
+        codes = _codes(text)
+        for ayah, at in _ayah_offsets(surah):
+            k, c = np.unique(codes[at: at + length], return_counts=True)
+            if not len(k):
+                continue
+            i = np.searchsorted(keys, k)
+            i[i >= len(keys)] = 0
+            hit = keys[i] == k
+            dot = float((counts[i[hit]] * c[hit]).sum())
+            out.append((dot / (norm * math.sqrt(float((c.astype(float) ** 2).sum()))), surah, ayah))
+    return sorted(out, reverse=True)
