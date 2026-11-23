@@ -443,7 +443,9 @@ function openReview() {
     const shift = (d) => {
       const old = w[1];
       w[1] = Math.max(0, Math.min(w[1] + d, w[2] - 40));
-      if (i > 0 && ws[i - 1][2] === old) ws[i - 1][2] = w[1];       // the word before ends where this begins
+      if (i > 0 && ws[i - 1][2] >= Math.min(old, w[1])) {           // the word before ends where this begins
+        ws[i - 1][2] = Math.max(w[1], ws[i - 1][1] + 1);
+      }
       run.edits.set(`${n}:${w[0]}:${i}`, [n, w[0], w[1], w[2]]);
       retime(); label(); playWord(w); saved();
     };

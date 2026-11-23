@@ -66,6 +66,53 @@ RECITERS = {
     208: ("qalun", "dokali-alim", "Al-Dokali Muhammad Al-Alim (Qalun)"),
 }
 RIWAYAH_NAMES = {"hafs": "Hafs", "warsh": "Warsh", "qalun": "Qalun"}
+# mp3quran's riwayat this dataset has the mushaf of; "المصحف المجود" is Hafs, recited mujawwad.
+MP3QURAN_RIWAYAT = {"حفص": "hafs", "ورش": "warsh", "قالون": "qalun", "المصحف المجود": "hafs"}
+
+
+def all_reciters(aligned: Path) -> dict[int, tuple[str, str, str]]:
+    """RECITERS, and every other read aligned in ALIGNED, named from mp3quran's English list: the
+    slug from its audio folder, with -mujawwad, -warsh or -qalun where it is that."""
+    request = urllib.request.Request(f"{API}/reciters?language=eng", headers={"User-Agent": "quran-word-align dataset build"})
+    eng = {}
+    for r in json.loads(urllib.request.urlopen(request, timeout=120).read())["reciters"]:
+        for m in r["moshaf"]:
+            eng[m["id"]] = (r["name"], m["name"], m["server"])
+    request = urllib.request.Request(f"{API}/ayat_timing/reads", headers={"User-Agent": "quran-word-align dataset build"})
+    reads = {r["id"]: r for r in json.loads(urllib.request.urlopen(request, timeout=120).read())}
+    out = dict(RECITERS)
+    slugs = {slug for _, slug, _ in RECITERS.values()}
+    for path in sorted(aligned.iterdir(), key=lambda p: int(p.name) if p.name.isdigit() else 0):
+        if not path.name.isdigit() or int(path.name) in out or not any(path.glob("*.json")):
+            continue
+        read_id = int(path.name)
+        rewaya = reads.get(read_id, {}).get("rewaya", "")
+        riwayah = next((r for k, r in MP3QURAN_RIWAYAT.items() if rewaya.startswith(k)), None)
+        if not riwayah or read_id not in eng:
+            continue
+        name, kind, server = eng[read_id]
+        slug = server.rstrip("/").split("/audio/")[-1].split("/")[0]
+        extra = "mujawwad" if "المجود" in rewaya else ("" if riwayah == "hafs" else riwayah)
+        if extra:
+            slug, name = f"{slug}-{extra}", f"{name} ({extra.title()})"
+        if slug in slugs:
+            slug = f"{slug}-{read_id}"
+        slugs.add(slug)
+        out[read_id] = (riwayah, slug, name)
+    return out
+
+
+def corrections(folder: Path) -> dict[tuple[int, int], dict[tuple[int, int], tuple[int, int]]]:
+    """Words checked by ear (dataset/corrections/*.json, as the demo page's review downloads them):
+    {(read id, surah): {(ayah, word): (start_ms, end_ms)}}."""
+    out: dict = {}
+    for path in sorted(folder.glob("*.json")) if folder.exists() else []:
+        c = json.loads(path.read_text(encoding="utf-8"))
+        if c.get("source") != "mp3quran" or not c.get("read"):
+            continue
+        for w in c.get("checked_by_ear", []):
+            out.setdefault((int(c["read"]), int(c["surah"])), {})[(int(w["ayah"]), int(w["word"]))] = (int(w["start_ms"]), int(w["end_ms"]))
+    return out
 
 
 def sha256(path: Path) -> str:
@@ -92,11 +139,15 @@ def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str) -
     if out.exists():
         shutil.rmtree(out)
     (out / "timings").mkdir(parents=True)
-    reciters, quality, differ, fingerprints, words_rows = [], [], [], [], []
-    for read_id, (riwayah, slug, name_en) in RECITERS.items():
+    reciters, quality, differ, fingerprints, words_rows, ayah_rows = [], [], [], [], [], []
+    everyone = all_reciters(aligned)
+    checked = corrections(HERE / "corrections")
+    for read_id, (riwayah, slug, name_en) in everyone.items():
         words = mushaf_words(riwayah)
         read = reads[read_id]
         files = sorted((aligned / str(read_id)).glob("*.json"))
+        if not files:
+            continue
         target = out / "timings" / slug
         target.mkdir()
         expected_words = timed_words = n_words = compared = agree = 0
@@ -104,6 +155,16 @@ def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str) -
         for path in files:
             surah = int(path.stem)
             result = json.loads(path.read_text(encoding="utf-8"))
+            fixes = checked.get((read_id, surah), {})
+            for ayah, ws in result.items():
+                for k, w in enumerate(ws):
+                    if (int(ayah), w[0]) in fixes:                 # checked by ear: as heard, confidence 1
+                        w[1], w[2] = fixes[(int(ayah), w[0])]
+                        w[3] = 1.0
+                        if k and ws[k - 1][2] > w[1]:              # the word before ends where it begins
+                            ws[k - 1][2] = max(w[1], ws[k - 1][1] + 1)
+                if ws:
+                    ayah_rows.append((slug, surah, int(ayah), min(w[1] for w in ws), max(w[2] for w in ws)))
             (target / path.name).write_text(json.dumps(result, separators=(",", ":")), encoding="utf-8")
             ayahs = sorted(n for (s, n) in words if s == surah)
             expected_words += sum(len(words[(surah, n)]) for n in ayahs)
@@ -139,16 +200,21 @@ def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str) -
                         "ayahs_compared": compared, "agree_with_mp3quran_pct": round(100 * agree / max(compared, 1), 2)})
         print(f"{slug}: {len(files)} surahs, {n_words} words, {agree}/{compared} ayahs where mp3quran puts them")
 
-    def write_csv(name: str, rows: list[dict]) -> None:
+    def write_csv(name: str, rows: list[dict], fields: list[str] | None = None) -> None:
         with (out / name).open("w", newline="", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=list(rows[0]))
+            w = csv.DictWriter(f, fieldnames=fields or list(rows[0]))
             w.writeheader()
             w.writerows(rows)
 
     write_csv("reciters.csv", reciters)
     write_csv("quality.csv", quality)
-    write_csv("differs-from-mp3quran.csv", differ)
+    write_csv("differs-from-mp3quran.csv", differ, ["reciter", "read_id", "surah", "ayah", "our_start_ms",
+                                                    "mp3quran_start_ms", "mp3quran_end_ms"])
     write_csv("audio-sha256.csv", fingerprints)
+    with (out / "ayah-timings.csv").open("w", newline="", encoding="utf-8") as f:
+        w = csv.writer(f)
+        w.writerow(["reciter", "surah", "ayah", "start_ms", "end_ms"])
+        w.writerows(sorted(ayah_rows, key=lambda r: (r[0], r[1], r[2])))
     with (out / "words.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["reciter", "riwayah", "surah", "ayah", "word", "start_ms", "end_ms", "confidence"])
@@ -159,13 +225,20 @@ def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str) -
     for q in quality:
         table.append(f"| {q['name_en']} | {RIWAYAH_NAMES[q['riwayah']]} | {q['surahs']} | {q['words_timed_pct']}% | "
                      f"{q['median_confidence']:.2f} | {q['confident_pct']}% | {q['agree_with_mp3quran_pct']}% |")
-    names = {slug: name for _, slug, name in RECITERS.values()}
+    names = {slug: name for _, slug, name in everyone.values()}
     worst = Counter((d["reciter"], d["surah"]) for d in differ).most_common(6)
     worst_text = ", ".join(f"{names[r]}, surah {s}: {n} ayahs" for (r, s), n in worst)
-    totals = {"words": f"{len(words_rows) / 1e6:.2f} million", "reciters": str(len(RECITERS)),
+    by = Counter(r["riwayah"] for r in reciters)
+    n_checked = sum(len(v) for v in checked.values())
+    totals = {"words": f"{len(words_rows) / 1e6:.2f} million", "reciters": str(len(reciters)),
+              "hafs": str(by["hafs"]), "warsh": str(by["warsh"]), "qalun": str(by["qalun"]),
+              "checked": f"{n_checked:,}",
               "differ": f"{len(differ):,}", "compared": f"{sum(q['ayahs_compared'] for q in quality):,}"}
     readme = (HERE / "card.md").read_text(encoding="utf-8").replace("{version}", version)
     readme = readme.replace("{quality_table}", "\n".join(table)).replace("{worst_surahs}", worst_text)
+    if not n_checked:                     # no words checked by ear yet: leave that line out
+        import re
+        readme = re.sub(r"- \*\*Checked by ear:\*\*.*?(?=\n- \*\*)\n", "", readme, flags=re.S)
     for k, v in totals.items():
         readme = readme.replace("{" + k + "}", v)
     (out / "README.md").write_text(readme, encoding="utf-8")
