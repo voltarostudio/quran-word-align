@@ -13,22 +13,45 @@
   @font-face { font-family: "KFGQPC Warsh"; src: url("fonts/kfgqpc_warsh_v30.ttf") format("truetype"); font-display: swap; }
   @font-face { font-family: "KFGQPC Qalun"; src: url("fonts/kfgqpc_qalun_v30.ttf") format("truetype"); font-display: swap; }
 
-  /* Midad's colours: by day sand, paper, ink, date, dune, palm; by night its naqsh night. */
+  /* Midad's colours, as midad.voltarostudio.com has them. Day: sakina (sand, paper, ink, date, dune,
+     palm) under a noon sky. Night: naqsh (night, ink teal, frame, ivory, gold) under the night's. */
   :root {
-    --bg: #F6F1E7; --ink: #1E2A2B; --muted: #7A5A3A; --line: #D9C7A3; --soft: #EDE3CF;
+    --bg: #F6F1E7; --ink: #1E2A2B; --muted: #6B4F33; --line: #D9C7A3; --soft: #EDE3CF;
     --accent: #2F6B5A; --accent-ink: #FFFDF8; --mark: #E3EFE9; --warn: #9C3D2E; --bar: rgba(246, 241, 231, .9);
+    --gold: #B8924A; --sky: #CFE3DE; --star: transparent;
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #0B2B31; --ink: #EDE6D6; --muted: #A7B5AF; --line: #2A5D63; --soft: #1F4B52;
-      --accent: #6FB59A; --accent-ink: #0B2B31; --mark: #1F4B52; --warn: #E0A07A; --bar: rgba(11, 43, 49, .9);
+      --bg: #0B2B31; --ink: #EDE6D6; --muted: #C9A35A; --line: #1F4B52; --soft: #1F4B52;
+      --accent: #6FB59A; --accent-ink: #0B2B31; --mark: #123F47; --warn: #E0A07A; --bar: rgba(11, 43, 49, .9);
+      --gold: #C9A35A; --sky: #12434C; --star: rgba(237, 230, 214, .55);
       color-scheme: dark;
     }
   }
+  :root[data-theme="dark"] {
+    --bg: #0B2B31; --ink: #EDE6D6; --muted: #C9A35A; --line: #1F4B52; --soft: #1F4B52;
+    --accent: #6FB59A; --accent-ink: #0B2B31; --mark: #123F47; --warn: #E0A07A; --bar: rgba(11, 43, 49, .9);
+    --gold: #C9A35A; --sky: #12434C; --star: rgba(237, 230, 214, .55);
+    color-scheme: dark;
+  }
 
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.75 "IBM Plex Sans Arabic", system-ui, sans-serif; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.75 "IBM Plex Sans Arabic", system-ui, sans-serif;
+    transition: background-color .5s ease, color .5s ease; }
+  /* The sky of the hour over the page: noon by day, the night with a few stars by night. */
+  body { position: relative; }
+  body::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 360px; z-index: -1; pointer-events: none;
+    background: radial-gradient(1px 1px at 18% 30%, var(--star) 99%, transparent), radial-gradient(1px 1px at 72% 18%, var(--star) 99%, transparent),
+      radial-gradient(1.5px 1.5px at 40% 12%, var(--star) 99%, transparent), radial-gradient(1px 1px at 88% 42%, var(--star) 99%, transparent),
+      radial-gradient(1px 1px at 8% 60%, var(--star) 99%, transparent), linear-gradient(180deg, var(--sky), transparent);
+    transition: opacity .5s ease; }
+  .brand .theme { font: inherit; background: none; border: 0; padding: 4px; margin-inline-start: 10px; color: var(--muted); cursor: pointer; vertical-align: middle;
+    display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; transition: background .2s; }
+  .brand .theme:hover { background: var(--soft); }
+  .brand .theme svg { width: 18px; height: 18px; transition: transform .6s cubic-bezier(.34, 1.36, .5, 1); }
+  .brand .theme:active svg { transform: rotate(-40deg) scale(.85); }
+  .brand .mark { width: 14px; height: 14px; vertical-align: -2px; margin-inline-end: 6px; fill: var(--accent); }
   main { max-width: 680px; margin: 0 auto; padding: 36px 22px 140px; }
   .brand { font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; gap: 12px; }
   .brand a { color: inherit; }
@@ -76,7 +99,9 @@
   .mushaf.inking .w.read { color: var(--ink); }
   .mushaf.inking .w.now { color: var(--accent); transition-duration: .35s; }
   .mushaf.inking .w.untimed { color: var(--muted); }
-  .num { color: var(--muted); }
+  .num { color: var(--muted); transition: color .8s ease; }
+  .mushaf.inking .num { color: color-mix(in srgb, var(--ink) 28%, transparent); }
+  .mushaf.inking .num.done { color: var(--gold); }     /* as in Midad, gold for what is done: an ayah heard to its end */
   .marker { position: absolute; z-index: 0; top: 0; right: 0; height: 0; width: 0; background: var(--mark); border-radius: 10px; pointer-events: none; opacity: 0;
     transition: transform .45s cubic-bezier(.34, 1.4, .64, 1), width .45s cubic-bezier(.34, 1.4, .64, 1), height .3s ease, opacity .35s ease; }
   .marker.on { opacity: 1; }
@@ -149,10 +174,12 @@
   [hidden] { display: none !important; }
   @media (prefers-reduced-motion: reduce) { .marker, .line i, .go, .play, .mushaf.inking .w { transition: none; } .line.busy i { animation: none; width: 100%; } }
 </style>
+<script>{ const t = localStorage.getItem("theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; }</script>
 </head>
 <body>
 <main>
-  <div class="brand"><span>مِداد · أداةٌ مفتوحة المصدر</span><a href="https://github.com/voltarostudio/quran-word-align" dir="ltr">quran-word-align</a></div>
+  <div class="brand"><span><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2c3 5 6 8.5 6 12a6 6 0 0 1-12 0c0-3.5 3-7 6-12z"/></svg>مِداد · أداةٌ مفتوحة المصدر</span>
+    <span><a href="https://github.com/voltarostudio/quran-word-align" dir="ltr">quran-word-align</a><button class="theme" id="theme" type="button" aria-label="الوضع الليلي"></button></span></div>
 
   <section id="source">
     <h1 class="say" data-panel="mp3quran">اسمع سورة <select id="surah-online" aria-label="السورة"></select><br>بصوت <select id="reader" aria-label="القارئ"><option>…</option></select></h1>
@@ -221,6 +248,23 @@ import { FORMATS, FRAME } from "./aligner.js";
 const API = "https://www.mp3quran.net/api/v3";
 const RIWAYAT = { "حفص": "hafs", "ورش": "warsh", "قالون": "qalun" };
 const $ = (s) => document.querySelector(s);
+
+// ---- day and night: the system's by default; the button picks one, and it is remembered
+const MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>';
+const SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>';
+const isDark = () => (document.documentElement.dataset.theme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")) === "dark";
+const themeIcon = () => {
+  $("#theme").innerHTML = isDark() ? SUN : MOON;
+  $("#theme").setAttribute("aria-label", isDark() ? "الوضع النهاري" : "الوضع الليلي");
+};
+$("#theme").addEventListener("click", () => {
+  const t = isDark() ? "light" : "dark";
+  document.documentElement.dataset.theme = t;
+  localStorage.setItem("theme", t);
+  themeIcon();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", themeIcon);
+themeIcon();
 const digits = (n) => String(n).replace(/\d/g, (d) => "٠١٢٣٤٥٦٧٨٩"[d]);
 const wordsCache = {};
 const loadWords = (r) => (wordsCache[r] ??= fetch(`../quran_word_align/data/${r}-words.json`).then((x) => x.json()));
@@ -375,11 +419,19 @@ worker.onmessage = ({ data }) => {
 };
 
 // ---- the words lighting up
-let timeline = [], spans = new Map(), current = null, inked = 0;
+let timeline = [], spans = new Map(), current = null, inked = 0, nums = new Map(), lastOf = new Map();
 // Words before position `at` of the timeline are read: ink them; words after it, unink them (after a seek back).
 function ink(at) {
-  for (; inked < at; inked++) spans.get(timeline[inked].key)?.classList.add("read");
-  for (; inked > at; inked--) spans.get(timeline[inked - 1].key)?.classList.remove("read");
+  for (; inked < at; inked++) {
+    const it = timeline[inked];
+    spans.get(it.key)?.classList.add("read");
+    if (lastOf.get(it.ayah) === inked) nums.get(it.ayah)?.classList.add("done");
+  }
+  for (; inked > at; inked--) {
+    const it = timeline[inked - 1];
+    spans.get(it.key)?.classList.remove("read");
+    if (lastOf.get(it.ayah) === inked - 1) nums.get(it.ayah)?.classList.remove("done");
+  }
 }
 function show(result) {
   const { surah, riwayah, words, blob } = run;
@@ -387,7 +439,7 @@ function show(result) {
   const mushaf = $("#mushaf");
   mushaf.className = `mushaf ${riwayah}`;
   mushaf.querySelectorAll(".a").forEach((x) => x.remove());
-  spans = new Map(); timeline = [];
+  spans = new Map(); timeline = []; nums = new Map();
   for (let n = 1; words[`${surah}:${n}`]; n++) {
     const ayah = document.createElement("span"); ayah.className = "a";
     const timed = new Map((result[n] ?? []).map((w) => [w[0], w]));
@@ -400,7 +452,7 @@ function show(result) {
       spans.set(`${n}:${i}`, s);
       ayah.append(s, " ");
     }
-    const num = document.createElement("span"); num.className = "num"; num.textContent = "۝" + digits(n);
+    const num = document.createElement("span"); num.className = "num"; num.textContent = "۝" + digits(n); nums.set(n, num);
     ayah.append(num, " ");
     mushaf.append(ayah);
 
@@ -420,6 +472,8 @@ function retime() {
   timeline = [];
   for (const [n, ws] of Object.entries(run.result)) for (const w of ws) timeline.push({ key: `${n}:${w[0]}`, start: w[1] / 1000, end: w[2] / 1000, ayah: Number(n) });
   timeline.sort((a, b) => a.start - b.start);
+  lastOf = new Map();
+  timeline.forEach((it, i) => lastOf.set(it.ayah, i));      // the ayah is done when its last word heard is
 }
 
 // ---- checking by ear the words heard least clearly
