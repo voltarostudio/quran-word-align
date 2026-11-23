@@ -5,3 +5,4 @@ aligned/
 .claude/
 eval/RESULTS.json
 eval/DETECT.json
+dist/

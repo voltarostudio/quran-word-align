@@ -1,0 +1,20 @@
+# Publishes to PyPI when a tag v* is pushed. PyPI trusts this workflow (trusted publishing): no
+# token is stored here. Set up once on pypi.org: project quran-word-align, owner voltarostudio,
+# repository quran-word-align, workflow publish.yml, environment pypi.
+name: publish
+on:
+  push:
+    tags: ["v*"]
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install build && python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1

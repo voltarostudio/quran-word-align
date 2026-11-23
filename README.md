@@ -16,9 +16,10 @@ word of the mushaf as the reciter reads it.
 
 ## What it does
 
-- **Any recording of a whole surah.** It finds the ayahs itself; ayah timings are optional.
-- **It knows the surah**: leave it out and it is found from the recording's opening (right for all
-  224 recordings we tried, [eval/DETECT.md](eval/DETECT.md)).
+- **A surah, part of one, several in a row (a juz), or one file per ayah.** It finds the ayahs
+  itself; ayah timings are optional.
+- **It knows where a recording begins**: leave the surah out and it is found from what is heard (the
+  surah was right for all 224 recordings we tried, [eval/DETECT.md](eval/DETECT.md)).
 - **Hafs, Warsh and Qalun**, each on the King Fahd Complex's own text of that riwayah. The riwayah you
   say: it cannot be told reliably from the sound, since the riwayat share the mushaf's letters and the
   model leans to Hafs where they differ ([eval/DETECT.md](eval/DETECT.md)).
@@ -37,15 +38,19 @@ Needs Python 3.10+ and [ffmpeg](https://ffmpeg.org).
 pip install git+https://github.com/voltarostudio/quran-word-align
 
 quran-word-align file yasin.mp3 36                      # a recording of your own (Hafs)
-quran-word-align file recitation.mp3                    # which surah it is, found from the recording
+quran-word-align file recitation.mp3                    # where it begins, found from the recording
+quran-word-align file juz30.mp3 78                      # several surahs in a row, from an-Naba'
+quran-word-align file part.mp3 36 --from-ayah 13        # part of a surah
+quran-word-align ayahs everyayah/Alafasy_128kbps/       # one file per ayah: 001001.mp3, 001002.mp3, ...
 quran-word-align file mulk.mp3 67 --riwayah warsh       # Warsh, or qalun
 quran-word-align file fatiha.mp3 1 --format json,srt,vtt
 quran-word-align reads                                  # mp3quran.net recordings, with their ids
 quran-word-align mp3quran 118 1 112                     # al-Fatiha and al-Ikhlas of recording 118
 ```
 
-The model (19 MB) is fetched once from Hugging Face and checked against its SHA-256. A recording
-must hold one whole surah; what comes before the first ayah (the isti'adha, the basmala) is skipped.
+The model (19 MB) is fetched once from Hugging Face and checked against its SHA-256. What comes
+before the first ayah (the isti'adha, the basmala) is skipped. A recording of several surahs is
+written as one file a surah; with `ayahs`, each ayah's times are from the start of its own file.
 
 If your recording has ayah timings already, `--timings ayahs.json` aligns each ayah in its window
 (`[{"ayah": 1, "start_ms": 0, "end_ms": 6100}, ...]`). For mp3quran.net, `--ayah-timings` uses
@@ -110,8 +115,8 @@ In flowing speech, our word starts run on average 0.1 s later than Quran.com's (
 Basit). In one blind listening test (Abdul Basit's al-Fatiha cut word by word, once at our starts and
 once 0.1 s earlier, one listener), our cut sounded better: the words began whole, without a piece of
 the word before. One listener and one surah is not proof, so treat this as a hint, not a settled
-answer. Recordings of only part of a surah, or of several surahs in one file, are not
-supported yet.
+answer. Recordings of part of a surah, of several surahs, and one file per ayah are supported, but
+so far tried on a few recordings only, not measured like whole surahs.
 
 ## How it works
 
@@ -171,8 +176,9 @@ belong to their sources (mp3quran.net and others); this repository holds none.
 
 ### ما تفعله
 
-- **تقبل تسجيل أي سورةٍ كاملة،** وتجد مواضع الآيات بنفسها، فلا تحتاج إلى توقيتٍ للآيات.
-- **تعرف السورة بنفسها** إن لم تذكرها، من أول التلاوة. أصابت في التسجيلات الـ٢٢٤ التي جرّبناها كلها.
+- **تقبل سورةً كاملة، أو جزءًا من سورة، أو سورًا متتابعة كجزء عمّ، أو ملفًّا لكل آية،** وتجد مواضع
+  الآيات بنفسها، فلا تحتاج إلى توقيتٍ للآيات.
+- **تعرف من أين يبدأ التسجيل** إن لم تذكر السورة. وأصابت السورة في التسجيلات الـ٢٢٤ التي جرّبناها كلها.
 - **تدعم روايات حفص وورش وقالون،** على نصّ مجمع الملك فهد لكل رواية. والرواية تذكرها أنت: لا تُعرف من
   الصوت معرفةً يُوثق بها، لأن الروايات تشترك في حروف المصحف، والنموذج يميل إلى حفص حيث تختلف.
 - **تعطي كلَّ كلمةٍ درجةَ ثقة** من صفرٍ إلى واحد، فتعرف أيَّ توقيتٍ تطمئن إليه وأيَّه تراجعه.
@@ -187,13 +193,16 @@ belong to their sources (mp3quran.net and others); this repository holds none.
 ```sh
 pip install git+https://github.com/voltarostudio/quran-word-align
 quran-word-align file yasin.mp3 36                    # تلاوة سورة يس من جهازك
-quran-word-align file recitation.mp3                  # تعرف الأداة السورة من التلاوة
+quran-word-align file recitation.mp3                  # تعرف الأداة من أين يبدأ التسجيل
+quran-word-align file juz30.mp3 78                    # سورٌ متتابعة، أولها النبأ
+quran-word-align file part.mp3 36 --from-ayah 13      # جزءٌ من سورة
+quran-word-align ayahs everyayah/Alafasy_128kbps/     # ملفٌّ لكل آية: 001001.mp3 وهكذا
 quran-word-align file mulk.mp3 67 --riwayah warsh     # برواية ورش، أو qalun لقالون
 quran-word-align mp3quran 118 1 112                   # الفاتحة والإخلاص من تسجيلات mp3quran
 ```
 
-يُنزَّل النموذج (١٩ م.ب) مرةً واحدة، ويُتحقَّق من بصمته. ويجب أن يحوي التسجيلُ سورةً كاملة، وتُتخطّى
-الاستعاذة والبسملة قبل أول آية.
+يُنزَّل النموذج (١٩ م.ب) مرةً واحدة، ويُتحقَّق من بصمته. وتُتخطّى الاستعاذة والبسملة قبل أول آية. ويُكتب
+تسجيل السور المتتابعة ملفًّا لكل سورة، وفي وضع `ayahs` يُحسب وقت كل آية من أول ملفّها.
 
 ### ما مدى دقتها
 
@@ -214,8 +223,8 @@ quran-word-align mp3quran 118 1 112                   # الفاتحة والإ�
 وما لم نحسمه بعد: في الكلام المتصل تتأخر بداياتنا عن بدايات Quran.com عُشرَ ثانيةٍ في المتوسط (وخُمسَها عند
 عبد الباسط)، وفي اختبار سماعٍ أعمى واحد (فاتحة عبد الباسط مقطَّعةً كلمةً كلمة، مرةً عند بداياتنا ومرةً قبلها بعُشر ثانية،
 وسامعٌ واحد) كان تقطيعنا أحسن: بدأت الكلمات تامّةً بلا بقيةٍ من الكلمة التي قبلها. وسامعٌ واحدٌ في سورةٍ
-واحدة لا يحسم الأمر، فهو قرينةٌ لا برهان. ولا تقبل الأداة بعدُ تسجيلًا لجزءٍ من
-سورة، ولا تسجيلًا يجمع سورًا عدة.
+واحدة لا يحسم الأمر، فهو قرينةٌ لا برهان. أما جزء السورة، والسور المتتابعة، والملف لكل آية، فقد جرّبناها
+على تسجيلاتٍ قليلة، ولم نقسها كما قسنا السور الكاملة.
 
 ### كيف تعمل
 
