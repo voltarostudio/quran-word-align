@@ -101,10 +101,10 @@
   .time { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 6.5em; text-align: left; }
 
   /* Our own picker: a small window with a search and the list, instead of the browser's menu. */
-  #picker { border: 0; padding: 0; background: transparent; width: min(440px, calc(100% - 32px)); max-height: min(620px, 78vh); overflow: visible; color: var(--ink); }
-  #picker::backdrop { background: rgba(11, 27, 30, .38); backdrop-filter: blur(3px); }
-  #picker[open] { animation: sheet .5s cubic-bezier(.3, 1.25, .4, 1); }
-  #picker[open]::backdrop { animation: fade .3s ease; }
+  #picker, #review { border: 0; padding: 0; background: transparent; width: min(440px, calc(100% - 32px)); max-height: min(620px, 78vh); overflow: visible; color: var(--ink); }
+  #picker::backdrop, #review::backdrop { background: rgba(11, 27, 30, .38); backdrop-filter: blur(3px); }
+  #picker[open], #review[open] { animation: sheet .5s cubic-bezier(.3, 1.25, .4, 1); }
+  #picker[open]::backdrop, #review[open]::backdrop { animation: fade .3s ease; }
   @keyframes sheet { from { transform: translateY(28px) scale(.97); opacity: 0; } }
   @keyframes fade { from { opacity: 0; } }
   .sheet { background: var(--bg); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .35);
@@ -123,12 +123,26 @@
   .opt[aria-selected="true"]::after { content: "✓"; margin-inline-start: auto; }
   .empty { color: var(--muted); padding: 14px 12px; font-size: 15px; }
   @media (max-width: 600px) {
-    #picker { width: 100%; max-width: none; margin: auto 0 0; }
-    #picker[open] { animation-name: rise; }
+    #picker, #review { width: 100%; max-width: none; margin: auto 0 0; }
+    #picker[open], #review[open] { animation-name: rise; }
     @keyframes rise { from { transform: translateY(100%); } }
     .sheet { border-radius: 24px 24px 0 0; border-bottom: 0; padding-bottom: env(safe-area-inset-bottom); }
   }
-  @media (prefers-reduced-motion: reduce) { #picker[open], #picker[open]::backdrop { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { #picker[open], #picker[open]::backdrop, #review[open], #review[open]::backdrop { animation: none; } }
+  /* Checking by ear the words the model heard least clearly. */
+  #review .hint { margin: 0 20px 8px; font-size: 14px; color: var(--muted); }
+  #review-list { overflow-y: auto; padding: 0 12px 8px; overscroll-behavior: contain; }
+  .ritem { display: flex; align-items: center; gap: 10px; padding: 10px 8px; border-bottom: 1px solid var(--soft); }
+  .ritem.done { opacity: .5; }
+  .ritem .rw { font-size: 26px; line-height: 1.6; min-width: 3.5em; }
+  .ritem .ra { font-size: 12px; color: var(--muted); flex: 1; }
+  .ritem button { font: inherit; font-size: 13px; color: var(--ink); background: var(--soft); border: 0; border-radius: 10px; padding: 7px 10px; cursor: pointer; }
+  .ritem button.ok { background: var(--accent); color: var(--accent-ink); }
+  .ritem button:active { transform: scale(.95); }
+  #review footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 20px 16px; border-top: 1px solid var(--line); margin: 0; }
+  #review footer span { font-size: 13px; color: var(--muted); }
+  #review footer .go { white-space: nowrap; font-size: 15px; padding: 10px 20px; }
+  .ritem .ra { line-height: 1.5; white-space: nowrap; }
 
   footer { margin-top: 48px; font-size: 13px; color: var(--muted); line-height: 1.9; }
   footer a { color: inherit; }
@@ -168,6 +182,7 @@
     <hr>
     <div class="mushaf" id="mushaf"><div class="marker" id="marker"></div></div>
     <p class="legend">اضغط كلمةً لتسمعها. والكلمة المسطَّرة بنقاط سمعها النموذج بوضوحٍ أقل، فتوقيتها أقلّ يقينًا.</p>
+    <p class="legend" id="review-line" hidden><button class="switch" id="review-open">راجع هذه الكلمات بالسمع (<span id="review-count"></span>)</button></p>
     <p class="downloads">نزّل التوقيت:
       <button data-format="json">JSON</button> · <button data-format="csv">CSV</button> · <button data-format="srt">SRT</button> · <button data-format="vtt">VTT</button> · <button data-format="segments">Quran.com segments</button></p>
   </section>
@@ -184,6 +199,13 @@
   <header><h2 id="pick-title"></h2><button class="x" id="pick-close" type="button">إغلاق</button></header>
   <input id="pick-q" type="search" placeholder="ابحث" autocomplete="off">
   <div id="pick-list" role="listbox"></div>
+</div></dialog>
+
+<dialog id="review"><div class="sheet">
+  <header><h2>راجع بالسمع</h2><button class="x" id="review-close" type="button">إغلاق</button></header>
+  <p class="hint">اسمع كل كلمة. إن بدأت متأخرةً فاضغط «أبكر»، وإن بدأت قبل وقتها فـ«أبعد»، ثم «صحيحة».</p>
+  <div id="review-list"></div>
+  <footer><span id="review-status"></span><button class="go" id="review-save" type="button" disabled>نزّل التصحيحات</button></footer>
 </div></dialog>
 
 <div class="player" id="player" hidden><div>
@@ -333,7 +355,7 @@ $("#go").addEventListener("click", async () => {
       blob = file; surah = Number($("#surah-file").value); riwayah = $("#riwayah").value;
     }
     const [wave, words, hafs] = await Promise.all([decode(blob), loadWords(riwayah), loadWords("hafs")]);
-    run = { blob, surah, riwayah, words };
+    run = { blob, surah, riwayah, words, read: tab === "mp3quran" ? Number($("#reader").value) : null, edits: new Map() };
     $("#find-label").textContent = "تحديد مواضع الآيات";
     worker.postMessage({ wave, surah, words, hafs }, [wave.buffer]);
   } catch (e) {
@@ -381,9 +403,11 @@ function show(result) {
     const num = document.createElement("span"); num.className = "num"; num.textContent = "۝" + digits(n);
     ayah.append(num, " ");
     mushaf.append(ayah);
-    for (const w of result[n] ?? []) timeline.push({ key: `${n}:${w[0]}`, start: w[1] / 1000, end: w[2] / 1000, ayah: n });
+
   }
-  timeline.sort((a, b) => a.start - b.start);
+  retime();
+  const low = lowWords().length;
+  $("#review-line").hidden = !low; $("#review-count").textContent = digits(low);
   const audio = $("#audio");
   if (audio.src) URL.revokeObjectURL(audio.src);
   audio.src = URL.createObjectURL(blob);
@@ -391,6 +415,67 @@ function show(result) {
   current = null; inked = 0; mushaf.classList.remove("inking"); place(null);
   $("#result").scrollIntoView({ behavior: "smooth", block: "start" });
 }
+
+function retime() {
+  timeline = [];
+  for (const [n, ws] of Object.entries(run.result)) for (const w of ws) timeline.push({ key: `${n}:${w[0]}`, start: w[1] / 1000, end: w[2] / 1000, ayah: Number(n) });
+  timeline.sort((a, b) => a.start - b.start);
+}
+
+// ---- checking by ear the words heard least clearly
+const LOW = 0.5, NUDGE = 40;      // ms a press moves a word's start
+let stopAt = null;
+const lowWords = () => Object.entries(run.result).flatMap(([n, ws]) => ws.map((w, i) => ({ n: Number(n), i, w })))
+  .filter(({ w }) => w[3] < LOW || w.checked).sort((a, b) => a.w[1] - b.w[1]);
+function playWord(w) { audio.currentTime = Math.max(0, w[1] / 1000 - 0.35); stopAt = w[2] / 1000 + 0.15; audio.play(); }
+function openReview() {
+  const list = $("#review-list"); list.innerHTML = "";
+  const text = (n, word) => run.words[`${run.surah}:${n}`].find(([i]) => i === word)?.[1] ?? "";
+  for (const item of lowWords()) {
+    const { n, i, w } = item, ws = run.result[n];
+    const row = document.createElement("div"); row.className = "ritem" + (w.checked ? " done" : "");
+    row.innerHTML = `<span class="rw mushaf ${run.riwayah}"></span><span class="ra"></span><button>▶</button><button>أبكر</button><button>أبعد</button><button class="ok">صحيحة</button>`;
+    row.querySelector(".rw").textContent = text(n, w[0]);
+    const label = () => (row.querySelector(".ra").innerHTML = `الآية ${digits(n)}<br>${digits((w[1] / 1000).toFixed(2)).replace(".", "٫")} ث`);
+    label();
+    const [play, earlier, later, ok] = row.querySelectorAll("button");
+    play.onclick = () => playWord(w);
+    const shift = (d) => {
+      const old = w[1];
+      w[1] = Math.max(0, Math.min(w[1] + d, w[2] - 40));
+      if (i > 0 && ws[i - 1][2] === old) ws[i - 1][2] = w[1];       // the word before ends where this begins
+      run.edits.set(`${n}:${w[0]}:${i}`, [n, w[0], w[1], w[2]]);
+      retime(); label(); playWord(w); saved();
+    };
+    earlier.onclick = () => shift(-NUDGE);
+    later.onclick = () => shift(NUDGE);
+    ok.onclick = () => {
+      w.checked = true; w[3] = 1;
+      run.edits.set(`${n}:${w[0]}:${i}`, [n, w[0], w[1], w[2]]);
+      spans.get(`${n}:${w[0]}`)?.classList.remove("low");
+      row.classList.add("done"); saved();
+    };
+    list.append(row);
+  }
+  saved();
+  $("#review").showModal();
+}
+function saved() {
+  const k = run.edits.size;
+  $("#review-status").textContent = k ? `${digits(k)} مصحَّحة، وهي في التوقيت الذي تنزّله` : "";
+  $("#review-save").disabled = !k;
+}
+$("#review-open").addEventListener("click", openReview);
+$("#review-close").addEventListener("click", () => $("#review").close());
+$("#review").addEventListener("click", (e) => { if (e.target === $("#review")) $("#review").close(); });
+$("#review-save").addEventListener("click", () => {
+  const body = { source: run.read ? "mp3quran" : "file", read: run.read, surah: run.surah, riwayah: run.riwayah,
+                 checked_by_ear: [...run.edits.values()].map(([n, word, start, end]) => ({ ayah: n, word, start_ms: start, end_ms: end })) };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(body, null, 1)], { type: "application/json" }));
+  a.download = `corrections-${run.read ?? "file"}-${String(run.surah).padStart(3, "0")}.json`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
 
 const audio = $("#audio"), marker = $("#marker");
 function place(item, paused = false) {
@@ -414,6 +499,7 @@ function place(item, paused = false) {
 }
 function tick() {
   const t = audio.currentTime;
+  if (stopAt != null && t >= stopAt) { audio.pause(); stopAt = null; }
   let lo = 0, hi = timeline.length - 1, at = -1;
   while (lo <= hi) { const m = (lo + hi) >> 1; if (timeline[m].start <= t) { at = m; lo = m + 1; } else hi = m - 1; }
   const item = at >= 0 ? timeline[at] : null;
