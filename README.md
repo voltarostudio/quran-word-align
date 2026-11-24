@@ -115,7 +115,8 @@ In flowing speech, our word starts run on average 0.1 s later than Quran.com's (
 Basit). In one blind listening test (Abdul Basit's al-Fatiha cut word by word, once at our starts and
 once 0.1 s earlier, one listener), our cut sounded better: the words began whole, without a piece of
 the word before. A second blind test, al-Fatiha of five more reciters, agreed: ours was preferred for
-Husary, Minshawi, Shuraim and Qatami, and Sudais could not be told apart. One listener is not proof,
+Husary, Minshawi, Shuraim and Qatami, and Sudais could not be told apart. A third, on words joined with no
+pause between them (five reciters, ours against 0.2 s earlier), chose ours all five times. One listener is not proof,
 so treat this as a strong hint, not a settled answer. Recordings of part of a surah, of several surahs, and one file per ayah are supported, but
 so far tried on a few recordings only, not measured like whole surahs.
 
@@ -224,7 +225,8 @@ quran-word-align mp3quran 118 1 112                   # الفاتحة والإ�
 وما لم نحسمه بعد: في الكلام المتصل تتأخر بداياتنا عن بدايات Quran.com عُشرَ ثانيةٍ في المتوسط (وخُمسَها عند
 عبد الباسط)، وفي اختبار سماعٍ أعمى واحد (فاتحة عبد الباسط مقطَّعةً كلمةً كلمة، مرةً عند بداياتنا ومرةً قبلها بعُشر ثانية،
 وسامعٌ واحد) كان تقطيعنا أحسن: بدأت الكلمات تامّةً بلا بقيةٍ من الكلمة التي قبلها. ووافقه اختبارٌ أعمى ثانٍ
-على فاتحة خمسة قرّاء آخرين: فُضِّل تقطيعنا عند الحصري والمنشاوي والشريم والقطامي، ولم يُفرَّق عند السديس.
+على فاتحة خمسة قرّاء آخرين: فُضِّل تقطيعنا عند الحصري والمنشاوي والشريم والقطامي، ولم يُفرَّق عند السديس. وثالثٌ على كلماتٍ موصولةٍ بلا وقفة
+(خمسة قرّاء، تقطيعنا مقابل خُمس ثانيةٍ قبله) اختار تقطيعنا في الخمسة.
 وسامعٌ واحدٌ لا يحسم الأمر، فهو قرينةٌ قويةٌ لا برهان. أما جزء السورة، والسور المتتابعة، والملف لكل آية، فقد جرّبناها
 على تسجيلاتٍ قليلة، ولم نقسها كما قسنا السور الكاملة.
 
