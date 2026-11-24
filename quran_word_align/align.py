@@ -259,8 +259,15 @@ def align(lp, words: list[list[int]], repeat_from: int = 0, repeat_to: int | Non
 
 def decode(path: Path):
     import numpy as np
-    pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-ac", "1", "-ar", str(SAMPLE_RATE), "-f", "f32le", "-"],
-                         capture_output=True, check=True).stdout
+    def run(*force):
+        return subprocess.run(["ffmpeg", "-v", "error", *force, "-i", str(path), "-ac", "1", "-ar", str(SAMPLE_RATE),
+                               "-f", "f32le", "-"], capture_output=True, check=True).stdout
+    try:
+        pcm = run()
+    except subprocess.CalledProcessError:
+        if path.suffix.lower() != ".mp3":
+            raise
+        pcm = run("-f", "mp3")    # some mp3s are taken by ffmpeg's probe for another format
     return np.frombuffer(pcm, dtype=np.float32)
 
 
