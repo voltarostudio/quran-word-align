@@ -257,10 +257,12 @@ def align(lp, words: list[list[int]], repeat_from: int = 0, repeat_to: int | Non
     return heard[::-1]
 
 
-def decode(path: Path):
+def decode(path: Path, seconds: float | None = None):
+    """The recording at 16 kHz, mono; only its first `seconds` when given."""
     import numpy as np
+    upto = ["-t", f"{seconds:.3f}"] if seconds else []
     def run(*force):
-        return subprocess.run(["ffmpeg", "-v", "error", *force, "-i", str(path), "-ac", "1", "-ar", str(SAMPLE_RATE),
+        return subprocess.run(["ffmpeg", "-v", "error", *force, "-i", str(path), *upto, "-ac", "1", "-ar", str(SAMPLE_RATE),
                                "-f", "f32le", "-"], capture_output=True, check=True).stdout
     try:
         pcm = run()
@@ -498,10 +500,39 @@ def hear_basmala(lp, db, f0: int, f1: int, tokens: list[tuple[int, str]], loud: 
             for (w, _), h, s, e in zip(tokens, heard, starts, ends)]
 
 
+def istiadha_at_start(audio: Path, model: Model, until: float, seconds: float = 25.0) -> list[list] | None:
+    """The isti'adha a recording opens with, before its basmala and before `until` seconds (where the
+    words after the basmala begin): its words [[i, start_ms, end_ms, confidence], ...], or None when it
+    is not heard clearly (most recordings have none)."""
+    wave = decode(audio, min(until, seconds))
+    if len(wave) < SAMPLE_RATE:
+        return None
+    lp, db = model.log_probs(wave), loudness(wave)
+    span = db[db > db.max() - 60]
+    loud = float(sorted(span)[int(len(span) * 0.9)]) if len(span) else 0.0
+    said = [letters(t) for t in ISTIADHA.split()]
+    heard = align(lp, said + [letters(t) for _, t in basmala_words()])
+    mine = [h for h in heard if h.word < len(said)]
+    rest = [h.confidence for h in heard if h.word >= len(said)]
+    # Said fast, its last words are heard less clearly: it is taken as said when it begins clearly,
+    # holds on the whole, and leaves the basmala after it heard clearly too (when there is no
+    # isti'adha, the basmala's letters are pulled into it and the basmala is lost).
+    if (len(mine) != len(said) or mine[0].confidence < 0.5 or sum(h.confidence for h in mine) / len(mine) < 0.45
+            or not rest or sum(rest) / len(rest) < 0.6):
+        return None
+    if any((h.end - h.start) * FRAME > LONGEST_WORD for h in mine[:-1]):
+        return None
+    starts = [h.start for h in mine] + [heard[len(said)].start]
+    ends = [voice_end(db, h.end + 1, nxt, loud) for h, nxt in zip(mine, starts[1:])]
+    return [[i + 1, round(s * FRAME * 1000), round(max(e, s + 1) * FRAME * 1000), h.confidence]
+            for i, (h, s, e) in enumerate(zip(mine, starts, ends))]
+
+
+
 def basmala_at_start(audio: Path, model: Model, until: float, seconds: float = 25.0) -> list[list] | None:
     """The basmala a surah's recording opens with, before `until` seconds (where the surah's first word
     begins): its words as hear_basmala gives them, or None."""
-    wave = decode(audio)[: int(min(until, seconds) * SAMPLE_RATE)]
+    wave = decode(audio, min(until, seconds))
     if len(wave) < SAMPLE_RATE:
         return None
     lp, db = model.log_probs(wave), loudness(wave)

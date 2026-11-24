@@ -1,8 +1,10 @@
 """Where each reciter's own basmala is, clearest first: for apps that play it before a surah whose
-recording lacks one. Nothing is cut: the place is given (surah file, start and end), and the audio
-stays mp3quran's.
+recording lacks one; and their isti'adha, for those who say it. Nothing is cut: the place is given
+(surah file, start and end), and the audio stays mp3quran's.
 
     python dataset/basmala.py ALIGNED AUDIO OUT.json
+
+OUT.json: {read id: {"basmala": {...}, "istiadha": {...}}}, each where found.
 
 ALIGNED: the aligned reads (one folder per mp3quran read id); AUDIO: the mp3 cache, with a folder
 mp3quran-<id> per read. A surah's own opening is heard alone, up to where its first word begins.
@@ -13,12 +15,36 @@ import statistics
 import sys
 from pathlib import Path
 
-from quran_word_align.align import Model, basmala_at_start
+from quran_word_align.align import Model, basmala_at_start, istiadha_at_start
 
 # Surahs tried, in order: short openings, which most reads have. Al-Fatiha is not among them: its
 # basmala is its first ayah (in Hafs), timed with the rest. At-Tawba has none.
 TRIED = (112, 113, 114, 67, 36, 55, 18, 2)
 CLEAR = 0.85            # mean confidence taken without trying further
+
+
+def place(surah: int, words: list[list]) -> dict:
+    return {"surah": surah, "start_ms": words[0][1], "end_ms": words[-1][2],
+            "confidence": round(statistics.mean(w[3] for w in words), 3), "words": words}
+
+
+def istiadha(folder: Path, audio: Path, model) -> tuple[int, list[list]] | None:
+    """The isti'adha, looked for where a reciter would say it: before al-Fatiha, or al-Baqarah."""
+    for surah in (1, 2):
+        mp3, timed = audio / f"{surah:03}.mp3", folder / f"{surah:03}.json"
+        if not (mp3.exists() and timed.exists()):
+            continue
+        t = json.loads(timed.read_text())
+        # In Hafs al-Fatiha's basmala is its first ayah (4, 4, 2, ... words), so the isti'adha and the
+        # basmala end where its second begins.
+        hafs_fatiha = surah == 1 and [len(t.get(str(a), [])) for a in range(1, 4)] == [4, 4, 2]
+        after = t.get("2" if hafs_fatiha else "1")
+        if not after:
+            continue
+        words = istiadha_at_start(mp3, model, after[0][1] / 1000)
+        if words:
+            return surah, words
+    return None
 
 
 def main() -> None:
@@ -43,11 +69,15 @@ def main() -> None:
                 best = (score, surah, words)
             if score >= CLEAR:
                 break
+        places = {}
         if best and best[0] >= CLEAR:
-            score, surah, words = best
-            found[folder.name] = {"surah": surah, "start_ms": words[0][1], "end_ms": words[-1][2],
-                                  "confidence": round(score, 3), "words": words}
-        print(folder.name, found.get(folder.name, {}).get("surah", "none"), round(best[0], 2) if best else "-", flush=True)
+            places["basmala"] = place(best[1], best[2])
+        said = istiadha(folder, audio / f"mp3quran-{folder.name}", model)
+        if said:
+            places["istiadha"] = place(*said)
+        if places:
+            found[folder.name] = places
+        print(folder.name, {k: v["surah"] for k, v in places.items()}, flush=True)
     out.write_text(json.dumps(found, ensure_ascii=False, indent=1))
 
 

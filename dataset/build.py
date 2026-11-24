@@ -217,11 +217,11 @@ def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str, b
         w.writerows(sorted(ayah_rows, key=lambda r: (r[0], r[1], r[2])))
     if basmala and basmala.exists():
         places = json.loads(basmala.read_text())
-        write_csv("basmala.csv", [{"reciter": slug, "surah": places[str(i)]["surah"], "start_ms": places[str(i)]["start_ms"],
-                                   "end_ms": places[str(i)]["end_ms"], "confidence": places[str(i)]["confidence"]}
-                                  for i, (_, slug, _) in everyone.items()
-                                  if str(i) in places and (aligned / str(i)).is_dir()],
-                  ["reciter", "surah", "start_ms", "end_ms", "confidence"])
+        for kind in ("basmala", "istiadha"):
+            write_csv(f"{kind}.csv", [{"reciter": slug, **{k: places[str(i)][kind][k] for k in ("surah", "start_ms", "end_ms", "confidence")}}
+                                      for i, (_, slug, _) in everyone.items()
+                                      if kind in places.get(str(i), {}) and (aligned / str(i)).is_dir()],
+                      ["reciter", "surah", "start_ms", "end_ms", "confidence"])
     with (out / "words.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["reciter", "riwayah", "surah", "ayah", "word", "start_ms", "end_ms", "confidence"])
@@ -266,7 +266,7 @@ def main() -> None:
     for name in ("aligned", "mp3quran", "audio", "out"):
         p.add_argument(name, type=Path)
     p.add_argument("--version", default="2.0")
-    p.add_argument("--basmala", type=Path, help="each reciter's basmala, from dataset/basmala.py")
+    p.add_argument("--basmala", type=Path, help="each reciter's basmala and isti'adha, from dataset/basmala.py")
     a = p.parse_args()
     build(a.aligned, a.mp3quran, a.audio, a.out, a.version, a.basmala)
 
