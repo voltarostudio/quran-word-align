@@ -411,6 +411,14 @@ def follow(rec: Recording, words: Words, surah: int, first: int = 1) -> dict[int
     return out
 
 
+def opening_words(basmala: bool) -> list[tuple[int, str]]:
+    """What a surah's file may say before its first ayah, as context the path may begin in: the
+    isti'adha, and the basmala (unless the first ayah is the basmala itself, as al-Fatiha's in Hafs).
+    Without it, a first ayah that opens with letters like the basmala's (الر, حم, ...) is placed in it."""
+    said = [(0, t) for t in ISTIADHA.split()]
+    return said if basmala else said + [(0, t) for _, t in basmala_words()]
+
+
 def align_ayahs(surah: int, rec: Recording, windows: list[tuple[int, float, float]], words: Words,
                 margin: float, then: list[tuple[int, str]] | None = None) -> dict:
     """Each ayah aligned in its window (ayah, start s, end s) widened by `margin`:
@@ -430,7 +438,7 @@ def align_ayahs(surah: int, rec: Recording, windows: list[tuple[int, float, floa
             continue
         # The window reaches into the ayahs either side: their nearest words are aligned too, so they
         # are not taken for this ayah's (or for a repeat of them), and then left out.
-        before = words.get((surah, n - 1), [])[-CONTEXT:]
+        before = words.get((surah, n - 1), [])[-CONTEXT:] if n > 1 else opening_words(basmala)
         after = [] if basmala else (words.get((surah, n + 1)) or then or [])[:CONTEXT]
         f0, f1 = int(a / FRAME), int(b / FRAME)
         heard = align(rec.lp[f0:f1], [letters(t) for _, t in before + tokens + after], repeat_from=len(before),
@@ -500,16 +508,45 @@ def hear_basmala(lp, db, f0: int, f1: int, tokens: list[tuple[int, str]], loud: 
             for (w, _), h, s, e in zip(tokens, heard, starts, ends)]
 
 
-def istiadha_at_start(audio: Path, model: Model, until: float, seconds: float = 25.0) -> list[list] | None:
-    """The isti'adha a recording opens with, before its basmala and before `until` seconds (where the
-    words after the basmala begin): its words [[i, start_ms, end_ms, confidence], ...], or None when it
-    is not heard clearly (most recordings have none)."""
+def heard_text(model: Model, wave) -> str:
+    """What the model hears in `wave`, best path, as text (words split by spaces)."""
+    import numpy as np
+    out, prev = [], -1
+    for t in np.asarray(model.log_probs(wave)).argmax(1).tolist():
+        if t != prev and t != BLANK:
+            out.append(VOCAB[t])
+        prev = t
+    return "".join(out)
+
+
+@dataclass
+class Opening:
+    """What a recording says before the words that follow it begin (a surah's first ayah)."""
+    voiced: float                      # seconds of voice heard there
+    basmala: list[list] | None         # its words, when heard clearly
+    basmala_score: float               # how clearly a basmala is heard there at all, 0..1
+    istiadha: list[list] | None        # its words, when heard clearly
+
+
+def opening(audio: Path, model: Model, until: float, seconds: float = 25.0) -> Opening:
+    """A recording's opening, up to `until` seconds (where the words after it begin), heard alone."""
+    import numpy as np
     wave = decode(audio, min(until, seconds))
-    if len(wave) < SAMPLE_RATE:
-        return None
+    if len(wave) < SAMPLE_RATE // 2:
+        return Opening(0.0, None, 0.0, None)
     lp, db = model.log_probs(wave), loudness(wave)
     span = db[db > db.max() - 60]
     loud = float(sorted(span)[int(len(span) * 0.9)]) if len(span) else 0.0
+    voiced = float((np.asarray(db) > max(loud - QUIET_DB, -50.0)).sum() * FRAME)
+    tokens = basmala_words()
+    plain = align(lp, [letters(t) for _, t in tokens])
+    score = sum(h.confidence for h in plain) / len(tokens) if len(plain) == len(tokens) else 0.0
+    return Opening(voiced, hear_basmala(lp, db, 0, len(lp), tokens, loud), score, hear_istiadha(lp, db, loud))
+
+
+def hear_istiadha(lp, db, loud: float) -> list[list] | None:
+    """The isti'adha before a basmala: its words [[i, start_ms, end_ms, confidence], ...], or None when
+    it is not heard clearly (most recordings have none)."""
     said = [letters(t) for t in ISTIADHA.split()]
     heard = align(lp, said + [letters(t) for _, t in basmala_words()])
     mine = [h for h in heard if h.word < len(said)]
@@ -528,17 +565,18 @@ def istiadha_at_start(audio: Path, model: Model, until: float, seconds: float = 
             for i, (h, s, e) in enumerate(zip(mine, starts, ends))]
 
 
-
-def basmala_at_start(audio: Path, model: Model, until: float, seconds: float = 25.0) -> list[list] | None:
-    """The basmala a surah's recording opens with, before `until` seconds (where the surah's first word
-    begins): its words as hear_basmala gives them, or None."""
-    wave = decode(audio, min(until, seconds))
-    if len(wave) < SAMPLE_RATE:
+def realign_first_ayah(audio: Path, surah: int, result: dict, words: Words, model: Model,
+                       after: float = 3.0) -> list[list] | None:
+    """Ayah 1 of an aligned surah heard again in the recording's opening alone (up to a little past
+    where ayah 2 begins), with what may precede it (opening_words) as context: its words, or None.
+    Fixes, cheaply, results aligned before that context was given."""
+    nxt = result.get(2) or result.get("2")
+    if not nxt:
         return None
-    lp, db = model.log_probs(wave), loudness(wave)
-    span = db[db > db.max() - 60]
-    loud = float(sorted(span)[int(len(span) * 0.9)]) if len(span) else 0.0
-    return hear_basmala(lp, db, 0, len(lp), basmala_words(), loud)
+    until = nxt[0][1] / 1000
+    wave = decode(audio, until + after)
+    rec = Recording(model.log_probs(wave), loudness(wave), wave, model)
+    return align_ayahs(surah, rec, [(1, 0.0, until), (2, until, rec.seconds)], words, margin=0.0).get(1)
 
 
 def align_recording(surah: int, audio: Path, words: Words, model: Model,

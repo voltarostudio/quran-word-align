@@ -37,6 +37,7 @@ recording on mp3quran.net, and `audio-sha256.csv` fingerprints the exact file we
 | `ayah-timings.csv` | each ayah's start and end, `reciter, surah, ayah, start_ms, end_ms`: ayah timings found from the audio, right where mp3quran's are off |
 | `basmala.csv` | each reciter's own basmala, `reciter, surah, start_ms, end_ms, confidence`: where it is in that surah's file, the clearest found, for apps that play it before a surah whose recording lacks one |
 | `istiadha.csv` | the isti'adha, for the reciters who say it (before al-Fatiha or al-Baqarah), same columns: for apps that play it once when listening begins |
+| `openings.csv` | how each surah's file opens, `reciter, surah, has_istiadha, has_basmala, first_word_ms`: 1 or 0 when it can be told, empty when not (a 0 is given only when sure, so an app that adds the reciter's basmala where it is 0 never doubles one); `first_word_ms`, where ayah 1 begins |
 | `quality.csv` | the table below |
 | `differs-from-mp3quran.csv` | ayahs we place outside mp3quran's ayah timing, to check |
 | `hafs-words.json`, `warsh-words.json`, `qalun-words.json` | the words: `{"surah:ayah": [[word, text], ...]}`, the King Fahd Complex's text of each riwayah |
@@ -125,6 +126,7 @@ mp3quran.net، ومعه بصمةُ الملف الذي وقّتناه.
 - **وفيه توقيت الآيات أيضًا** (`ayah-timings.csv`)، وجدناه من التلاوة نفسها.
 - **وبسملة كل قارئ بصوته** (`basmala.csv`): مكانها في أوضح سورةٍ عنده، لمن يشغّلها قبل سورةٍ ليس في تسجيلها بسملة.
 - **والتعوّذ بصوت القارئ** (`istiadha.csv`) لمن قرأه منهم، لمن يشغّله مرةً عند بدء الاستماع.
+- **وبداية كل سورة** (`openings.csv`): هل يبدأ ملفها بتعوّذ أو ببسملة (1 أو 0، وفارغٌ إن لم نستطع الحكم)، وأين تبدأ كلمتها الأولى.
 - **وجدنا مواضع الآيات بأنفسنا** من التسجيل، فصحّت حيث أخطأ توقيت الآيات في mp3quran، وهو خاطئٌ بآيةٍ أو
   أكثر في بعض السور.
 

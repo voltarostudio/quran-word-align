@@ -217,11 +217,15 @@ def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str, b
         w.writerows(sorted(ayah_rows, key=lambda r: (r[0], r[1], r[2])))
     if basmala and basmala.exists():
         places = json.loads(basmala.read_text())
+        present = [(str(i), slug) for i, (_, slug, _) in everyone.items() if str(i) in places and (aligned / str(i)).is_dir()]
         for kind in ("basmala", "istiadha"):
-            write_csv(f"{kind}.csv", [{"reciter": slug, **{k: places[str(i)][kind][k] for k in ("surah", "start_ms", "end_ms", "confidence")}}
-                                      for i, (_, slug, _) in everyone.items()
-                                      if kind in places.get(str(i), {}) and (aligned / str(i)).is_dir()],
+            write_csv(f"{kind}.csv", [{"reciter": slug, **{k: places[i][kind][k] for k in ("surah", "start_ms", "end_ms", "confidence")}}
+                                      for i, slug in present if kind in places[i]],
                       ["reciter", "surah", "start_ms", "end_ms", "confidence"])
+        write_csv("openings.csv", [{"reciter": slug, "surah": int(surah), **row}
+                                   for i, slug in present
+                                   for surah, row in sorted(places[i].get("openings", {}).items(), key=lambda kv: int(kv[0]))],
+                  ["reciter", "surah", "has_istiadha", "has_basmala", "first_word_ms"])
     with (out / "words.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["reciter", "riwayah", "surah", "ayah", "word", "start_ms", "end_ms", "confidence"])
