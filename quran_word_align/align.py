@@ -295,16 +295,28 @@ def voice_end(db, start: int, limit: int, loud: float) -> int:
     return limit
 
 
+KEEP_SECONDS = 600.0
+
+
 @dataclass
 class Recording:
     """A recording heard by the model: its letter log-probabilities and loudness, frame by frame."""
     lp: object
     db: object
+    wave: object = None        # kept only for short recordings (al-Fatiha), to hear a part again alone
+    model: object = None
 
     @classmethod
     def hear(cls, audio: Path, model: Model) -> "Recording":
         wave = decode(audio)
-        return cls(model.log_probs(wave), loudness(wave))
+        keep = len(wave) < KEEP_SECONDS * SAMPLE_RATE
+        return cls(model.log_probs(wave), loudness(wave), wave if keep else None, model if keep else None)
+
+    def hear_again(self, f0: int, f1: int):
+        """Frames f0..f1 heard by the model on their own, or None when the wave was not kept."""
+        if self.wave is None or self.model is None:
+            return None
+        return self.model.log_probs(self.wave[f0 * FRAME_SAMPLES: f1 * FRAME_SAMPLES])
 
     @property
     def seconds(self) -> float:
@@ -435,34 +447,51 @@ def align_ayahs(surah: int, rec: Recording, windows: list[tuple[int, float, floa
         ends = [voice_end(rec.db, f0 + h.end + 1, nxt, loud) for h, nxt in zip(own, starts[1:])] + [stop]
         result[n] = [[tokens[h.word - len(before)][0], round(s * FRAME * 1000), round(max(e, s + 1) * FRAME * 1000),
                       h.confidence] for h, s, e in zip(own, starts, ends)]
-        if basmala and len(own) == len(tokens) and sum(h.confidence for h in own) / len(own) < UNHEARD:
-            result[n] = spread(rec.db, f0, stop, tokens, [h.confidence for h in own])
+        if basmala and sum(h.confidence for h in own) / len(tokens) < UNHEARD:
+            alone = basmala_alone(rec, f0, stop, tokens, loud)
+            if alone:
+                result[n] = alone
+            elif sum(h.confidence for h in own) / len(tokens) < ABSENT:
+                del result[n]          # not heard even alone: the recording begins at al-hamdu
     return result
 
 
-# Al-Fatiha's basmala at the very start of a recording is sometimes not heard by the model at all
-# (about one recording in ten): its words are then laid over the voice in the shares they take where
-# it is heard (the median of 20 recordings of the dataset; the last word holds the closing madd).
-UNHEARD = 0.2
-BASMALA_SHARES = (0.13, 0.15, 0.18, 0.54)
-SNAP_FRAMES = 4
+# Al-Fatiha's basmala is sometimes not heard where the surah follows it (about one recording in ten),
+# or heard in the isti'adha before it. Heard again on its own, cut from the recording, it is.
+UNHEARD = 0.6
+ABSENT = 0.2
 
 
-def spread(db, f0: int, f1: int, tokens: list[tuple[int, str]], confidence: list[float]) -> list[list]:
-    """The basmala's words laid over the voice in frames f0..f1 in BASMALA_SHARES, each boundary
-    moved to the quietest frame near it (the breath between words, or a soft consonant)."""
-    import numpy as np
-    span = np.asarray(db[f0:f1])
-    if not len(span):
-        return []
-    loud = float(np.sort(span)[int(len(span) * 0.9)])
-    voiced = np.nonzero(span > loud - QUIET_DB)[0]
-    a, b = f0 + int(voiced[0]), f0 + int(voiced[-1]) + 1
-    cuts = [a + int(round(x * (b - a))) for x in np.cumsum(BASMALA_SHARES)[:-1]]
-    cuts = [c - SNAP_FRAMES + int(np.argmin(db[c - SNAP_FRAMES: c + SNAP_FRAMES + 1])) for c in cuts]
-    bounds = [a] + cuts + [b]
-    return [[w, round(s * FRAME * 1000), round(max(e, s + 1) * FRAME * 1000), c]
-            for (w, _), s, e, c in zip(tokens, bounds, bounds[1:], confidence)]
+# The isti'adha some reciters say before it, so its words are not taken for the basmala's (letters
+# as the model spells them; not Quran text).
+ISTIADHA = "اعوذ بالله من الشيطان الرجيم"
+LONGEST_WORD = 2.5         # seconds a basmala word but the last (which holds the madd) may last
+
+
+def basmala_alone(rec: Recording, f0: int, f1: int, tokens: list[tuple[int, str]], loud: float) -> list[list] | None:
+    f1 = min(f1, len(rec.lp))
+    lp = rec.hear_again(f0, f1)
+    if lp is None:
+        return None
+    own = [letters(t) for _, t in tokens]
+    best = None
+    for before in ([], [letters(t) for t in ISTIADHA.split()]):
+        heard = [h for h in align(lp, before + own) if h.word >= len(before)]
+        if len(heard) != len(own):
+            continue
+        score = sum(h.confidence for h in heard) / len(heard)
+        if best is None or score > best[0]:
+            best = (score, heard)
+    if best is None or best[0] < UNHEARD:
+        return None
+    heard = best[1]
+    if any((h.end - h.start) * FRAME > LONGEST_WORD for h in heard[:-1]):
+        return None
+    starts = [f0 + h.start for h in heard]
+    ends = [voice_end(rec.db, f0 + h.end + 1, nxt, loud) for h, nxt in zip(heard, starts[1:])]
+    ends.append(voice_end(rec.db, f0 + heard[-1].end + 1, f1, loud))
+    return [[w, round(s * FRAME * 1000), round(max(e, s + 1) * FRAME * 1000), h.confidence]
+            for (w, _), h, s, e in zip(tokens, heard, starts, ends)]
 
 
 def align_recording(surah: int, audio: Path, words: Words, model: Model,

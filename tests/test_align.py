@@ -149,3 +149,29 @@ def test_locate_finds_a_start_inside_a_surah():
     spans, _, frames = speak(flat)
     _, surah, ayah = locate(synthetic(spans, frames))[0]
     assert (surah, ayah) in [(36, 9), (36, 10), (36, 11)]
+
+
+class _Hears:
+    """A model that hears, in a part cut alone, what the whole recording's hearing left out."""
+    def __init__(self, lp):
+        self.lp = lp
+
+    def log_probs(self, wave):
+        return self.lp[: len(wave) // A.FRAME_SAMPLES]
+
+
+def test_fatiha_basmala_unheard_is_heard_alone():
+    W = A.hafs_words()
+    words = [A.letters(t) for key in [(1, 1), (1, 2)] for _, t in W[key]]
+    spans, firsts, frames = speak(words, gap=8)
+    alone = synthetic(spans, frames)
+    unheard = synthetic([(t, c) for t, c in spans if t >= firsts[4]], frames)   # the basmala left out
+    wave = np.zeros(frames * A.FRAME_SAMPLES, np.float32)
+    windows = [(1, 0.0, (firsts[4] - 2) * A.FRAME), (2, firsts[4] * A.FRAME, frames * A.FRAME)]
+    rec = A.Recording(unheard, np.zeros(frames), wave, _Hears(alone))
+    out = A.align_ayahs(1, rec, windows, W, margin=0.0)
+    assert [round(s / 1000 / A.FRAME) for _, s, _, _ in out[1]] == firsts[:4]
+    assert min(c for *_, c in out[1]) > 0.6
+    # And a recording with no basmala at all (it begins at al-hamdu) gets none.
+    rec = A.Recording(unheard, np.zeros(frames), wave, _Hears(unheard))
+    assert 1 not in A.align_ayahs(1, rec, windows, W, margin=0.0)
