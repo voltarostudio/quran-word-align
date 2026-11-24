@@ -435,7 +435,34 @@ def align_ayahs(surah: int, rec: Recording, windows: list[tuple[int, float, floa
         ends = [voice_end(rec.db, f0 + h.end + 1, nxt, loud) for h, nxt in zip(own, starts[1:])] + [stop]
         result[n] = [[tokens[h.word - len(before)][0], round(s * FRAME * 1000), round(max(e, s + 1) * FRAME * 1000),
                       h.confidence] for h, s, e in zip(own, starts, ends)]
+        if basmala and len(own) == len(tokens) and sum(h.confidence for h in own) / len(own) < UNHEARD:
+            result[n] = spread(rec.db, f0, stop, tokens, [h.confidence for h in own])
     return result
+
+
+# Al-Fatiha's basmala at the very start of a recording is sometimes not heard by the model at all
+# (about one recording in ten): its words are then laid over the voice in the shares they take where
+# it is heard (the median of 20 recordings of the dataset; the last word holds the closing madd).
+UNHEARD = 0.2
+BASMALA_SHARES = (0.13, 0.15, 0.18, 0.54)
+SNAP_FRAMES = 4
+
+
+def spread(db, f0: int, f1: int, tokens: list[tuple[int, str]], confidence: list[float]) -> list[list]:
+    """The basmala's words laid over the voice in frames f0..f1 in BASMALA_SHARES, each boundary
+    moved to the quietest frame near it (the breath between words, or a soft consonant)."""
+    import numpy as np
+    span = np.asarray(db[f0:f1])
+    if not len(span):
+        return []
+    loud = float(np.sort(span)[int(len(span) * 0.9)])
+    voiced = np.nonzero(span > loud - QUIET_DB)[0]
+    a, b = f0 + int(voiced[0]), f0 + int(voiced[-1]) + 1
+    cuts = [a + int(round(x * (b - a))) for x in np.cumsum(BASMALA_SHARES)[:-1]]
+    cuts = [c - SNAP_FRAMES + int(np.argmin(db[c - SNAP_FRAMES: c + SNAP_FRAMES + 1])) for c in cuts]
+    bounds = [a] + cuts + [b]
+    return [[w, round(s * FRAME * 1000), round(max(e, s + 1) * FRAME * 1000), c]
+            for (w, _), s, e, c in zip(tokens, bounds, bounds[1:], confidence)]
 
 
 def align_recording(surah: int, audio: Path, words: Words, model: Model,
