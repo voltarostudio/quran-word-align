@@ -118,7 +118,9 @@ the word before. A second blind test, al-Fatiha of five more reciters, agreed: o
 Husary, Minshawi, Shuraim and Qatami, and Sudais could not be told apart. A third, on words joined with no
 pause between them (five reciters, ours against 0.2 s earlier), chose ours all five times. One listener is not proof,
 so treat this as a strong hint, not a settled answer. Recordings of part of a surah, of several surahs, and one file per ayah are supported, but
-so far tried on a few recordings only, not measured like whole surahs.
+so far tried on a few recordings only, not measured like whole surahs. A surah opening with disjoined letters (الر، حم, …) after an
+isti'adha and a basmala can still have its first word placed too early, inside the basmala; ayah 1 is
+now aligned with them as context, which fixes some of these, not all.
 
 ## How it works
 
@@ -228,7 +230,8 @@ quran-word-align mp3quran 118 1 112                   # الفاتحة والإ�
 على فاتحة خمسة قرّاء آخرين: فُضِّل تقطيعنا عند الحصري والمنشاوي والشريم والقطامي، ولم يُفرَّق عند السديس. وثالثٌ على كلماتٍ موصولةٍ بلا وقفة
 (خمسة قرّاء، تقطيعنا مقابل خُمس ثانيةٍ قبله) اختار تقطيعنا في الخمسة.
 وسامعٌ واحدٌ لا يحسم الأمر، فهو قرينةٌ قويةٌ لا برهان. أما جزء السورة، والسور المتتابعة، والملف لكل آية، فقد جرّبناها
-على تسجيلاتٍ قليلة، ولم نقسها كما قسنا السور الكاملة.
+على تسجيلاتٍ قليلة، ولم نقسها كما قسنا السور الكاملة. والسورة التي تبدأ بحروفٍ مقطّعة (الر، حم، …) بعد تعوّذٍ وبسملة قد تُوضع كلمتها الأولى
+مبكّرةً داخل البسملة؛ وصرنا نوقّت الآية الأولى والتعوّذ والبسملة قبلها، فصلح بعض ذلك لا كلّه.
 
 ### كيف تعمل
 
