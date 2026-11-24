@@ -6,8 +6,9 @@ recording. It runs on a laptop without a GPU, or in the browser. [العربية
 - **[Try it in your browser](https://voltarostudio.github.io/quran-word-align/)**: pick a reciter from
   mp3quran.net or a recording of your own, watch the words light up, download the timings. Nothing is
   uploaded.
-- **[The dataset](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v2.0)**: 28 complete
-  recitations from mp3quran.net (Hafs, Warsh, Qalun), already timed word by word, CC-BY 4.0.
+- **[The dataset](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v3.0)**: 111
+  recitations from mp3quran.net (103 Hafs, 5 Warsh, 3 Qalun), already timed word by word, with each
+  reciter's own basmala and isti'adha and how each surah's file opens, CC-BY 4.0.
   [What is in it](dataset/README.md). Also on
   [Hugging Face](https://huggingface.co/datasets/voltarostudio/quran-word-timings-mp3quran).
 
@@ -174,8 +175,8 @@ belong to their sources (mp3quran.net and others); this repository holds none.
 
 - **[جرّبها في متصفحك](https://voltarostudio.github.io/quran-word-align/):** اختر قارئًا من mp3quran.net
   أو تلاوةً من جهازك، فترى الكلمات تُعلَّم مع القراءة، ثم نزّل توقيتها. لا يُرفع تسجيلك إلى أي مكان.
-- **[مجموعة البيانات](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v2.0):** ٢٨ ختمةً كاملة من
-  mp3quran.net بروايات حفص وورش وقالون، موقّتةٌ كلمةً كلمة، ومباحةٌ برخصة CC-BY 4.0.
+- **[مجموعة البيانات](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v3.0):** ١١١ ختمةً من
+  mp3quran.net بروايات حفص وورش وقالون، موقّتةٌ كلمةً كلمة، ومعها بسملة كل قارئ واستعاذته بصوته وكيف يبدأ ملف كل سورة، ومباحةٌ برخصة CC-BY 4.0.
   وهي على [Hugging Face](https://huggingface.co/datasets/voltarostudio/quran-word-timings-mp3quran) أيضًا.
 
 ### ما تفعله
