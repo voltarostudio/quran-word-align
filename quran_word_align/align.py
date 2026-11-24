@@ -471,8 +471,12 @@ LONGEST_WORD = 2.5         # seconds a basmala word but the last (which holds th
 def basmala_alone(rec: Recording, f0: int, f1: int, tokens: list[tuple[int, str]], loud: float) -> list[list] | None:
     f1 = min(f1, len(rec.lp))
     lp = rec.hear_again(f0, f1)
-    if lp is None:
-        return None
+    return None if lp is None else hear_basmala(lp, rec.db, f0, f1, tokens, loud)
+
+
+def hear_basmala(lp, db, f0: int, f1: int, tokens: list[tuple[int, str]], loud: float) -> list[list] | None:
+    """The basmala's words in `lp` (frames f0..f1 of the recording heard on their own), after an
+    isti'adha or not: [[word, start_ms, end_ms, confidence], ...], or None when not heard clearly."""
     own = [letters(t) for _, t in tokens]
     best = None
     for before in ([], [letters(t) for t in ISTIADHA.split()]):
@@ -488,10 +492,22 @@ def basmala_alone(rec: Recording, f0: int, f1: int, tokens: list[tuple[int, str]
     if any((h.end - h.start) * FRAME > LONGEST_WORD for h in heard[:-1]):
         return None
     starts = [f0 + h.start for h in heard]
-    ends = [voice_end(rec.db, f0 + h.end + 1, nxt, loud) for h, nxt in zip(heard, starts[1:])]
-    ends.append(voice_end(rec.db, f0 + heard[-1].end + 1, f1, loud))
+    ends = [voice_end(db, f0 + h.end + 1, nxt, loud) for h, nxt in zip(heard, starts[1:])]
+    ends.append(voice_end(db, f0 + heard[-1].end + 1, f1, loud))
     return [[w, round(s * FRAME * 1000), round(max(e, s + 1) * FRAME * 1000), h.confidence]
             for (w, _), h, s, e in zip(tokens, heard, starts, ends)]
+
+
+def basmala_at_start(audio: Path, model: Model, until: float, seconds: float = 25.0) -> list[list] | None:
+    """The basmala a surah's recording opens with, before `until` seconds (where the surah's first word
+    begins): its words as hear_basmala gives them, or None."""
+    wave = decode(audio)[: int(min(until, seconds) * SAMPLE_RATE)]
+    if len(wave) < SAMPLE_RATE:
+        return None
+    lp, db = model.log_probs(wave), loudness(wave)
+    span = db[db > db.max() - 60]
+    loud = float(sorted(span)[int(len(span) * 0.9)]) if len(span) else 0.0
+    return hear_basmala(lp, db, 0, len(lp), basmala_words(), loud)
 
 
 def align_recording(surah: int, audio: Path, words: Words, model: Model,

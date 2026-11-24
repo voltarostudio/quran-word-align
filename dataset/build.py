@@ -133,7 +133,7 @@ def mp3quran_rows(mp3quran: Path, read_id: int, surah: int) -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str) -> None:
+def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str, basmala: Path | None = None) -> None:
     request = urllib.request.Request(f"{API}/ayat_timing/reads", headers={"User-Agent": "quran-word-align dataset build"})
     reads = {r["id"]: r for r in json.loads(urllib.request.urlopen(request, timeout=120).read())}
     if out.exists():
@@ -215,6 +215,13 @@ def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str) -
         w = csv.writer(f)
         w.writerow(["reciter", "surah", "ayah", "start_ms", "end_ms"])
         w.writerows(sorted(ayah_rows, key=lambda r: (r[0], r[1], r[2])))
+    if basmala and basmala.exists():
+        places = json.loads(basmala.read_text())
+        write_csv("basmala.csv", [{"reciter": slug, "surah": places[str(i)]["surah"], "start_ms": places[str(i)]["start_ms"],
+                                   "end_ms": places[str(i)]["end_ms"], "confidence": places[str(i)]["confidence"]}
+                                  for i, (_, slug, _) in everyone.items()
+                                  if str(i) in places and (aligned / str(i)).is_dir()],
+                  ["reciter", "surah", "start_ms", "end_ms", "confidence"])
     with (out / "words.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["reciter", "riwayah", "surah", "ayah", "word", "start_ms", "end_ms", "confidence"])
@@ -259,8 +266,9 @@ def main() -> None:
     for name in ("aligned", "mp3quran", "audio", "out"):
         p.add_argument(name, type=Path)
     p.add_argument("--version", default="2.0")
+    p.add_argument("--basmala", type=Path, help="each reciter's basmala, from dataset/basmala.py")
     a = p.parse_args()
-    build(a.aligned, a.mp3quran, a.audio, a.out, a.version)
+    build(a.aligned, a.mp3quran, a.audio, a.out, a.version, a.basmala)
 
 
 if __name__ == "__main__":
