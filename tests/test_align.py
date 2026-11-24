@@ -189,15 +189,15 @@ def test_decode_keeps_voice_in_antiphase_stereo(tmp_path):
 
 
 def test_decode_keeps_voice_when_channels_cancel_in_part(tmp_path):
-    """Channels in phase, then in antiphase for most of it (hassan-saleh, surah 23) are still heard."""
+    """Channels in phase, then in antiphase for the rest (hassan-saleh, surahs 23 and 42) are still heard."""
     import subprocess
     import numpy as np
     from quran_word_align.align import decode
     f = tmp_path / "part.mp3"
     a = tmp_path / "a.wav"; b = tmp_path / "b.wav"
-    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=30",
                     "-af", "pan=stereo|c0=c0|c1=c0", str(a)], check=True)
-    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=5",
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=25",
                     "-af", "pan=stereo|c0=c0|c1=-1*c0", str(b)], check=True)
     subprocess.run(["ffmpeg", "-v", "error", "-i", str(a), "-i", str(b), "-filter_complex", "concat=n=2:v=0:a=1",
                     str(f)], check=True)

@@ -258,6 +258,7 @@ def align(lp, words: list[list[int]], repeat_from: int = 0, repeat_to: int | Non
 
 
 CANCELLED = 0.5      # a mono mix this much quieter than one channel: the channels cancel out, in all or part of it
+VOICED = 0.02        # mean amplitude of a window with voice in it
 
 
 def decode(path: Path, seconds: float | None = None):
@@ -280,7 +281,12 @@ def decode(path: Path, seconds: float | None = None):
         return np.frombuffer(pcm, dtype=np.float32)
     wave = heard(["-ac", "1"])
     left = heard(["-af", "pan=mono|c0=c0"])
-    if len(wave) and np.abs(wave).mean() < CANCELLED * np.abs(left).mean():
+    n = min(len(wave), len(left)) // (10 * SAMPLE_RATE)    # ten-second windows
+    if n:
+        mixed, one = (np.abs(w[: n * 10 * SAMPLE_RATE]).reshape(n, -1).mean(1) for w in (wave, left))
+        if ((one > VOICED) & (mixed < CANCELLED * one)).any():
+            return left
+    elif len(wave) and np.abs(wave).mean() < CANCELLED * np.abs(left).mean():
         return left
     return wave
 
