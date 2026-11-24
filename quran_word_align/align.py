@@ -257,20 +257,33 @@ def align(lp, words: list[list[int]], repeat_from: int = 0, repeat_to: int | Non
     return heard[::-1]
 
 
+CANCELLED = 0.001    # mean amplitude of a mono mix where the two channels cancel out
+
+
 def decode(path: Path, seconds: float | None = None):
-    """The recording at 16 kHz, mono; only its first `seconds` when given."""
+    """The recording at 16 kHz, mono; only its first `seconds` when given.
+
+    Some recordings carry the voice in antiphase on their two channels, so that mixing them to mono
+    leaves near silence: there, one channel is taken alone."""
     import numpy as np
     upto = ["-t", f"{seconds:.3f}"] if seconds else []
-    def run(*force):
-        return subprocess.run(["ffmpeg", "-v", "error", *force, "-i", str(path), *upto, "-ac", "1", "-ar", str(SAMPLE_RATE),
+    def run(mix, *force):
+        return subprocess.run(["ffmpeg", "-v", "error", *force, "-i", str(path), *upto, *mix, "-ar", str(SAMPLE_RATE),
                                "-f", "f32le", "-"], capture_output=True, check=True).stdout
-    try:
-        pcm = run()
-    except subprocess.CalledProcessError:
-        if path.suffix.lower() != ".mp3":
-            raise
-        pcm = run("-f", "mp3")    # some mp3s are taken by ffmpeg's probe for another format
-    return np.frombuffer(pcm, dtype=np.float32)
+    def heard(mix):
+        try:
+            pcm = run(mix)
+        except subprocess.CalledProcessError:
+            if path.suffix.lower() != ".mp3":
+                raise
+            pcm = run(mix, "-f", "mp3")    # some mp3s are taken by ffmpeg's probe for another format
+        return np.frombuffer(pcm, dtype=np.float32)
+    wave = heard(["-ac", "1"])
+    if len(wave) and np.abs(wave).mean() < CANCELLED:
+        left = heard(["-af", "pan=mono|c0=c0"])
+        if np.abs(left).mean() > 10 * np.abs(wave).mean():
+            return left
+    return wave
 
 
 def loudness(wave):

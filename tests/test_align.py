@@ -175,3 +175,14 @@ def test_fatiha_basmala_unheard_is_heard_alone():
     # And a recording with no basmala at all (it begins at al-hamdu) gets none.
     rec = A.Recording(unheard, np.zeros(frames), wave, _Hears(unheard))
     assert 1 not in A.align_ayahs(1, rec, windows, W, margin=0.0)
+
+
+def test_decode_keeps_voice_in_antiphase_stereo(tmp_path):
+    """A recording whose two channels cancel out when mixed is still heard (hassan-saleh, surah 55)."""
+    import subprocess
+    import numpy as np
+    from quran_word_align.align import decode
+    f = tmp_path / "antiphase.mp3"
+    subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+                    "-af", "pan=stereo|c0=c0|c1=-1*c0", str(f)], check=True)
+    assert np.abs(decode(f)).mean() > 0.05
