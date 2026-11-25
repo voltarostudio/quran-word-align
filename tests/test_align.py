@@ -218,3 +218,32 @@ def test_basmala_words_are_given_only_when_clear():
     assert lit_basmala({**row, "basmala_words": words[:2] + [[3, 1500, 2300, 0.3]] + words[3:]}) is None
     assert lit_basmala({**row, "first_word_ms": 3000}) is None          # runs into ayah 1
     assert lit_basmala({**row, "has_basmala": None}) is None
+
+
+def test_basmala_in_another_voice_is_caught():
+    """A basmala is taken as the reciter's own only when its voice is like the surah after it in the same
+    file, or like the reciter's voice over all their files; else it is another reader's and is dropped."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent / "dataset"))
+    from voice import SAME_VOICE, same_voice
+    assert same_voice({"basmala": SAME_VOICE + 0.3, "reciter": SAME_VOICE - 0.2})
+    assert same_voice({"basmala": SAME_VOICE - 0.2, "reciter": SAME_VOICE + 0.3})
+    assert not same_voice({"basmala": 0.05, "reciter": 0.1})               # yasser-dosari's files open so
+    assert same_voice({"basmala": None, "reciter": None})                   # not heard: nothing to judge
+
+
+def test_voice_features_put_a_tone_in_its_own_mel_bin():
+    """The speaker model takes Kaldi's log mel filterbank; a 1 kHz tone must land in the bin centred
+    nearest 1 kHz, or every voice comparison is made on the wrong features."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent / "dataset"))
+    from voice import fbank
+    t = np.arange(A.SAMPLE_RATE) / A.SAMPLE_RATE
+    tone = 0.3 * np.sin(2 * np.pi * 1000 * t) * (t < 0.5)       # the tone, then near silence: the mean is taken out
+    feats = fbank(tone + 1e-4 * np.random.default_rng(0).standard_normal(len(t)))
+    assert feats.shape == (98, 80)
+    mel = lambda f: 1127 * np.log(1 + f / 700)                     # Kaldi's mel scale, 80 bins from 20 Hz
+    centre = mel(20) + (np.argmax(feats[10]) + 1) * (mel(8000) - mel(20)) / 81
+    assert abs(700 * (np.exp(centre / 1127) - 1) - 1000) < 40
