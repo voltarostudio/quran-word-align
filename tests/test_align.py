@@ -247,3 +247,24 @@ def test_voice_features_put_a_tone_in_its_own_mel_bin():
     mel = lambda f: 1127 * np.log(1 + f / 700)                     # Kaldi's mel scale, 80 bins from 20 Hz
     centre = mel(20) + (np.argmax(feats[10]) + 1) * (mel(8000) - mel(20)) / 81
     assert abs(700 * (np.exp(centre / 1127) - 1) - 1000) < 40
+
+
+def test_a_reciters_istiadha_is_chosen_again_in_their_own_voice(tmp_path):
+    """When the isti'adha chosen for a reciter is in another voice, it is dropped and chosen again among
+    the files whose isti'adha is the reciter's own: an app must never play another reader's as theirs."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent / "dataset"))
+    from build import in_own_voice
+    words = [[i, i * 500, i * 500 + 400, 0.9] for i in range(1, 6)]
+    places = {"openings": {"1": {}, "2": {}, "67": {}},
+              "istiadha": {"surah": 67, "start_ms": 0, "end_ms": 3000, "confidence": 0.9, "words": words}}
+    heard = {"files": {}, "istiadha": {"surah": 67, "reciter": 0.1},
+             "istiadhas": {"1": {"file": 0.7, "reciter": 0.7, "words": words},
+                           "2": {"file": 0.1, "reciter": 0.1, "words": words},
+                           "67": {"file": 0.1, "reciter": 0.1, "words": words}}}
+    for name, size in (("001", 900), ("002", 50), ("067", 10)):       # the files in another voice are shorter
+        (tmp_path / f"{name}.mp3").write_bytes(b"0" * size)
+    in_own_voice(places, heard, tmp_path)
+    assert places["openings"]["1"]["istiadha_own_voice"] == 1 and places["openings"]["2"]["istiadha_own_voice"] == 0
+    assert places["istiadha"]["surah"] == 1

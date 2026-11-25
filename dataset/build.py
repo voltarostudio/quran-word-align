@@ -136,14 +136,17 @@ def mp3quran_rows(mp3quran: Path, read_id: int, surah: int) -> list[dict]:
 
 
 def in_own_voice(places: dict, heard: dict, audio: Path) -> None:
-    """Marks each file's basmala as in the reciter's own voice (1) or another's (0), and drops the
-    reciter's basmala or isti'adha when the chosen clip is in another's (the basmala is chosen again among
-    the files whose basmala is the reciter's own). A file's basmala words are kept either way: they time
+    """Marks each file's basmala and isti'adha as in the reciter's own voice (1) or another's (0), and
+    drops the reciter's basmala or isti'adha when the chosen clip is in another's (each is chosen again
+    among the files where it is in the reciter's own voice). A file's basmala words are kept either way: they time
     the audio as it is, whoever says it."""
     for surah, row in places["openings"].items():
         v = heard["files"].get(surah)
         if row.get("has_basmala") == 1 and v and (v["basmala"] is not None or v["reciter"] is not None):
             row["basmala_own_voice"] = int(same_voice(v))
+    for surah, v in heard.get("istiadhas", {}).items():
+        if surah in places["openings"]:
+            places["openings"][surah]["istiadha_own_voice"] = int(same_voice(v))
     for kind in ("basmala", "istiadha"):
         chosen = heard.get(kind)
         if kind in places and chosen and not same_voice({"reciter": chosen["reciter"]}):
@@ -155,6 +158,13 @@ def in_own_voice(places: dict, heard: dict, audio: Path) -> None:
         chosen = shortest(found)
         if chosen:
             places["basmala"] = chosen
+    if "istiadha" not in places:
+        found = [(mean(v["words"]), (audio / f"{int(s):03d}.mp3").stat().st_size, int(s), v["words"])
+                 for s, v in heard.get("istiadhas", {}).items()
+                 if same_voice(v) and (audio / f"{int(s):03d}.mp3").exists()]
+        chosen = shortest(found)
+        if chosen:
+            places["istiadha"] = chosen
 
 
 def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str, basmala: Path | None = None,
@@ -253,7 +263,7 @@ def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str, b
                       ["reciter", "surah", "start_ms", "end_ms", "confidence"])
         opened = [(slug, int(surah), row) for i, slug in present
                   for surah, row in sorted(places[i].get("openings", {}).items(), key=lambda kv: int(kv[0]))]
-        fields = ["has_istiadha", "has_basmala", "basmala_own_voice", "first_word_ms", "istiadha_end_ms"]
+        fields = ["has_istiadha", "has_basmala", "basmala_own_voice", "istiadha_own_voice", "first_word_ms", "istiadha_end_ms"]
         write_csv("openings.csv", [{"reciter": slug, "surah": surah, **{k: row.get(k) for k in fields}}
                                    for slug, surah, row in opened], ["reciter", "surah", *fields])
         write_csv("basmala_words.csv", [{"reciter": slug, "surah": surah, "word": w, "start_ms": a, "end_ms": b, "confidence": c,
