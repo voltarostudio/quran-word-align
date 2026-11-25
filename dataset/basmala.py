@@ -16,6 +16,8 @@ Each surah's opening, up to where its first word begins, is heard alone. In it:
   was timed, else 0.
 - has_istiadha is 1 when an isti'adha is heard clearly before the basmala, 0 when there is no room
   for one (the basmala, or the first word, begins within NO_ROOM seconds of voice), else empty.
+- basmala_words: the basmala's four words in that file, when has_basmala is 1 (lit_basmala says when
+  they are clear enough to give); istiadha_end_ms, where a clearly heard isti'adha ends.
 - The basmala given for a reciter (heard at CLEAR or better) is in the shortest file (bytes) whose basmala is heard within MARGIN
   of the reciter's clearest, as an app must download the whole file to play it; likewise the
   isti'adha.
@@ -43,6 +45,26 @@ SHORT_VOICE = 3.0       # seconds of voice in which an unheard basmala is taken 
 SURE_FIRST = 0.85
 PAST = 4.0
 SAID_BEFORE = ("بسم", "لله", "رحمن", "رحيم", "عوذ", "شيط", "رجيم")
+
+
+# The basmala's words are given, to light them as they are heard, only when each is heard clearly
+# where it is placed and the four fit before the first ayah: a light must never run ahead of the voice.
+WORD_CLEAR = 0.5        # each word's confidence
+MEAN_CLEAR = 0.75       # the four words' mean confidence
+
+
+def lit_basmala(row: dict) -> list[list] | None:
+    """The basmala's words [[word, start_ms, end_ms, confidence], ...] of an opening, when clear enough to light."""
+    words, first = row.get("basmala_words"), row.get("first_word_ms")
+    if not words or len(words) != 4 or row.get("has_basmala") != 1:
+        return None
+    if min(w[3] for w in words) < WORD_CLEAR or mean(words) < MEAN_CLEAR:
+        return None
+    if any(w[2] <= w[1] for w in words) or any(b[1] < a[1] for a, b in zip(words, words[1:])):
+        return None
+    if first is not None and words[-1][2] > first:
+        return None
+    return words
 
 
 def says_something_before(model, mp3: Path, first_s: float) -> bool:
@@ -95,8 +117,11 @@ def read_openings(folder: Path, audio: Path, model) -> dict:
         elif (first and first[0][3] >= SURE_FIRST and (o.voiced < NO_ROOM or (o.basmala_score < NOT_HEARD and o.voiced < SHORT_VOICE))
               and not says_something_before(model, mp3, first[0][1] / 1000)):
             row["has_basmala"] = 0
+        if row["has_basmala"] == 1 and o.basmala and not hafs_fatiha:
+            row["basmala_words"] = o.basmala
         if o.istiadha:
             row["has_istiadha"] = 1
+            row["istiadha_end_ms"] = o.istiadha[-1][2]
             istiadhas.append((mean(o.istiadha), size, surah, o.istiadha))
         else:
             begins = o.basmala[0][1] / 1000 if row["has_basmala"] == 1 and o.basmala else None

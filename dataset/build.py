@@ -31,6 +31,7 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE.parent))
 
 from quran_word_align.align import mushaf_words  # noqa: E402
+from basmala import lit_basmala  # noqa: E402
 
 API = "https://www.mp3quran.net/api/v3"
 
@@ -222,10 +223,14 @@ def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str, b
             write_csv(f"{kind}.csv", [{"reciter": slug, **{k: places[i][kind][k] for k in ("surah", "start_ms", "end_ms", "confidence")}}
                                       for i, slug in present if kind in places[i]],
                       ["reciter", "surah", "start_ms", "end_ms", "confidence"])
-        write_csv("openings.csv", [{"reciter": slug, "surah": int(surah), **row}
-                                   for i, slug in present
-                                   for surah, row in sorted(places[i].get("openings", {}).items(), key=lambda kv: int(kv[0]))],
-                  ["reciter", "surah", "has_istiadha", "has_basmala", "first_word_ms"])
+        opened = [(slug, int(surah), row) for i, slug in present
+                  for surah, row in sorted(places[i].get("openings", {}).items(), key=lambda kv: int(kv[0]))]
+        fields = ["has_istiadha", "has_basmala", "first_word_ms", "istiadha_end_ms"]
+        write_csv("openings.csv", [{"reciter": slug, "surah": surah, **{k: row.get(k) for k in fields}}
+                                   for slug, surah, row in opened], ["reciter", "surah", *fields])
+        write_csv("basmala_words.csv", [{"reciter": slug, "surah": surah, "word": w, "start_ms": a, "end_ms": b, "confidence": c}
+                                        for slug, surah, row in opened for w, a, b, c in (lit_basmala(row) or [])],
+                  ["reciter", "surah", "word", "start_ms", "end_ms", "confidence"])
     with (out / "words.csv").open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["reciter", "riwayah", "surah", "ayah", "word", "start_ms", "end_ms", "confidence"])

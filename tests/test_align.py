@@ -203,3 +203,18 @@ def test_decode_keeps_voice_when_channels_cancel_in_part(tmp_path):
                     str(f)], check=True)
     wave = decode(f)
     assert np.abs(wave[-16000:]).mean() > 0.05
+
+
+def test_basmala_words_are_given_only_when_clear():
+    """A basmala is lit word by word only where each word was heard clearly and all four end before
+    ayah 1: a light must never run ahead of the reciter."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent / "dataset"))
+    from basmala import lit_basmala
+    words = [[1, 400, 900, 0.9], [2, 900, 1500, 0.9], [3, 1500, 2300, 0.9], [4, 2300, 3200, 0.9]]
+    row = {"has_basmala": 1, "first_word_ms": 3600, "basmala_words": words}
+    assert lit_basmala(row) == words
+    assert lit_basmala({**row, "basmala_words": words[:2] + [[3, 1500, 2300, 0.3]] + words[3:]}) is None
+    assert lit_basmala({**row, "first_word_ms": 3000}) is None          # runs into ayah 1
+    assert lit_basmala({**row, "has_basmala": None}) is None
