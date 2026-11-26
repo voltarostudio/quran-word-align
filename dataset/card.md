@@ -25,6 +25,7 @@ reads it, cut a recitation word by word, or subtitle it.
 The timings are ours, made with [quran-word-align](https://github.com/voltarostudio/quran-word-align),
 and free under **CC-BY 4.0**. The recordings are not in the dataset: each timing file points to its
 recording on mp3quran.net, and `audio-sha256.csv` fingerprints the exact file we aligned.
+What changed in each version: [CHANGELOG](https://github.com/voltarostudio/quran-word-align/blob/main/dataset/CHANGELOG.md).
 
 ## What is in it
 
