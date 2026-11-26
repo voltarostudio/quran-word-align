@@ -287,3 +287,5 @@ def test_playback_starts_where_the_reciters_own_voice_begins():
     assert reciter_starts({**pasted, "basmala_own_voice": 0}) == 6700
     assert reciter_starts({**own, "basmala_own_voice": None}) is None                    # not checked: not told
     assert reciter_starts({**own, "has_basmala": 0, "basmala_words": None}) == 0
+    fatiha = {"has_istiadha": 1, "istiadha_own_voice": 0, "istiadha_end_ms": 4360, "has_basmala": 1, "first_word_ms": 4320}
+    assert reciter_starts(fatiha) == 4320                                                # al-Fatiha's basmala is ayah 1

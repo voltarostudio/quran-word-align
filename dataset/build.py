@@ -151,7 +151,8 @@ def reciter_starts(row: dict) -> int | None:
             start = max(start, row["basmala_words"][-1][2])
     elif row.get("has_basmala") is None:
         return None
-    return start
+    first = row.get("first_word_ms")
+    return min(start, first) if first is not None else start     # never into the reciter's own words
 
 
 def in_own_voice(places: dict, heard: dict, audio: Path) -> None:
