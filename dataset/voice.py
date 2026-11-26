@@ -25,6 +25,7 @@ import numpy as np
 from quran_word_align.align import SAMPLE_RATE, Model, decode, opening
 
 SURAH_SECONDS = 12.0     # how much of the surah, from its first word, stands for the reciter's voice
+REPEAT = 0.8             # a clip this like one of the reciter's clips in another voice is that pasted clip again
 SAME_VOICE = 0.35        # a basmala is in the reciter's voice when like the surah after it, or the reciter, at least this much
 
 
@@ -75,7 +76,10 @@ def cut(wave: np.ndarray, start_ms: float, end_ms: float) -> np.ndarray:
 
 
 def same_voice(v: dict) -> bool:
-    """Whether a clip's voice is the reciter's: like the surah after it in its file, or the reciter's mean voice."""
+    """Whether a clip's voice is the reciter's: like the surah after it in its file, or the reciter's mean
+    voice, and not the same pasted clip as one of theirs in another voice (`repeat`: how like it is)."""
+    if (v.get("repeat") or 0) >= REPEAT:
+        return False
     known = [x for x in (v.get("file", v.get("basmala")), v.get("reciter")) if x is not None]
     return not known or max(known) >= SAME_VOICE
 
@@ -119,6 +123,9 @@ def read_voices(job) -> tuple[str, dict]:
     out = {"files": {s: {"basmala": cos(b, surahs.get(s)), "reciter": cos(b, reciter)} for s, b in basmalas.items()},
            "istiadhas": {s: {"file": cos(e, surahs.get(s)), "reciter": cos(e, reciter), "words": w}
                          for s, (w, e) in istiadhas.items()}}
+    # A pasted clip is one recording repeated in many files: one heard in another voice exposes the others,
+    # even where one of them happens to come near the reciter's voice.
+    clips = [(out["files"][s], e) for s, e in basmalas.items()] + [(out["istiadhas"][s], e) for s, (_, e) in istiadhas.items()]
     for kind in ("basmala", "istiadha"):
         chosen = places.get(kind)
         if chosen:
@@ -126,7 +133,13 @@ def read_voices(job) -> tuple[str, dict]:
             wave = waves.get(s)
             if wave is None:
                 wave = decode(folder / f"{int(s):03d}.mp3", chosen["end_ms"] / 1000 + 1)
-            out[kind] = {"surah": chosen["surah"], "reciter": cos(voices(cut(wave, chosen["start_ms"], chosen["end_ms"])), reciter)}
+            e = voices(cut(wave, chosen["start_ms"], chosen["end_ms"]))
+            out[kind] = {"surah": chosen["surah"], "reciter": cos(e, reciter)}
+            clips.append((out[kind], e))
+    other = [(v, e) for v, e in clips if e is not None and not same_voice(v)]
+    for v, e in clips:
+        likes = [cos(e, o) for w, o in other if w is not v]
+        v["repeat"] = max(likes) if e is not None and likes else None
     return read, out
 
 

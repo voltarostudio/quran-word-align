@@ -3,6 +3,11 @@
 What changed in each version of the dataset. What the files hold, and the licence, are in the
 [dataset card](README.md).
 
+## v3.5 — A truer voice check
+
+- A pasted clip repeats across a reciter's files. A copy that happens to come near the reciter's voice is now caught by its likeness to the copies heard in another voice. Checked by ear on a sample.
+- `openings.csv`, `basmala_words.csv`, `basmala.csv` and `istiadha.csv` follow from it.
+
 ## v3.4 — Where the reciter's voice begins
 
 - `openings.csv`: new column `reciter_starts_ms`, where the reciter's own voice begins in each surah's file.

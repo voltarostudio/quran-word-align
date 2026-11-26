@@ -169,7 +169,7 @@ def in_own_voice(places: dict, heard: dict, audio: Path) -> None:
             places["openings"][surah]["istiadha_own_voice"] = int(same_voice(v))
     for kind in ("basmala", "istiadha"):
         chosen = heard.get(kind)
-        if kind in places and chosen and not same_voice({"reciter": chosen["reciter"]}):
+        if kind in places and chosen and not same_voice({k: chosen.get(k) for k in ("reciter", "repeat")}):
             del places[kind]
     if "basmala" not in places:
         found = [(mean(w), (audio / f"{int(s):03d}.mp3").stat().st_size, int(s), w)

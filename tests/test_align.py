@@ -308,3 +308,17 @@ def test_audio_check_flags_changed_and_gone_recordings(tmp_path, monkeypatch, ca
     assert done.value.code == 1
     assert "4 recordings: 2 changed or gone, 1 not reached" in capsys.readouterr().out
     assert [r.split(",")[2] for r in (tmp_path / "out.csv").read_text().splitlines()[1:]] == ["1", "2"]
+
+
+def test_a_pasted_clip_near_the_reciters_voice_is_still_caught():
+    """One pasted clip repeats across a reciter's files; where one copy happens to come near the reciter's
+    voice (Basel heard such isti'adhas at 0.355 and 0.359 as another voice), its likeness to the copies
+    heard in another voice gives it away."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent / "dataset"))
+    from voice import REPEAT, SAME_VOICE, same_voice
+    near = {"file": SAME_VOICE + 0.01, "reciter": SAME_VOICE - 0.1}
+    assert same_voice(near)
+    assert not same_voice({**near, "repeat": REPEAT + 0.1})              # the pasted clip again
+    assert same_voice({"file": 0.7, "reciter": 0.7, "repeat": REPEAT - 0.1})   # the reciter's own readings
