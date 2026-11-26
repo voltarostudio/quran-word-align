@@ -20,6 +20,7 @@ classifiers = [
 Homepage = "https://github.com/voltarostudio/quran-word-align"
 Demo = "https://voltarostudio.github.io/quran-word-align/"
 Dataset = "https://huggingface.co/datasets/voltarostudio/quran-word-timings-mp3quran"
+Changelog = "https://github.com/voltarostudio/quran-word-align/blob/main/CHANGELOG.md"
 
 [project.scripts]
 quran-word-align = "quran_word_align.cli:main"
