@@ -62,7 +62,7 @@ What changed in each version: [CHANGELOG](https://github.com/voltarostudio/quran
   the basmala's words are in `basmala_words.csv`, where heard clearly, and the isti'adha's end in `openings.csv`.
 - **Whose voice says the basmala** is told by a speaker model (WeSpeaker's ResNet34, trained on
   VoxCeleb2, CC BY 4.0): a basmala is the reciter's own when its voice is like that of the surah after
-  it in the same file, or like the reciter's voice over all their files (cosine 0.35 or more), . A clip pasted in
+  it in the same file, or like the reciter's voice over all their files (cosine 0.35 or more). A clip pasted in
   several files (copies at cosine 0.8 or more) is judged by the median of its copies. In al-Fatiha the
   reciter's voice is taken from ayah 2. Checked by ear on 16 clips.
 - One recording is noisy throughout (Mohammad Khalil Al-Qari, surah 13, ar-Ra'd): its ayahs are placed
