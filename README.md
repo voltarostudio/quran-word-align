@@ -1,5 +1,9 @@
 # quran-word-align
 
+[![tests](https://github.com/voltarostudio/quran-word-align/actions/workflows/test.yml/badge.svg)](https://github.com/voltarostudio/quran-word-align/actions/workflows/test.yml)
+[![PyPI](https://img.shields.io/pypi/v/quran-word-align)](https://pypi.org/project/quran-word-align/)
+[![dataset on Hugging Face](https://img.shields.io/badge/dataset-Hugging%20Face-yellow)](https://huggingface.co/datasets/voltarostudio/quran-word-timings-mp3quran)
+
 Word-by-word timings for Quran recitations: when each word of the mushaf starts and ends in a
 recording. It runs on a laptop without a GPU, or in the browser. [العربية أدناه](#بالعربية)
 
