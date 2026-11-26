@@ -6,7 +6,7 @@ recording. It runs on a laptop without a GPU, or in the browser. [العربية
 - **[Try it in your browser](https://voltarostudio.github.io/quran-word-align/)**: pick a reciter from
   mp3quran.net or a recording of your own, watch the words light up, download the timings. Nothing is
   uploaded.
-- **[The dataset](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v3.3)**: 111
+- **[The dataset](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v3.4)**: 111
   recitations from mp3quran.net (103 Hafs, 5 Warsh, 3 Qalun), already timed word by word, with each
   reciter's own basmala and isti'adha, the basmala's words in each surah's file, whose voice says each file's basmala and isti'adha, and how each file opens, CC-BY 4.0.
   [What is in it](dataset/README.md). Also on
@@ -175,7 +175,7 @@ belong to their sources (mp3quran.net and others); this repository holds none.
 
 - **[جرّبها في متصفحك](https://voltarostudio.github.io/quran-word-align/):** اختر قارئًا من mp3quran.net
   أو تلاوةً من جهازك، فترى الكلمات تُعلَّم مع القراءة، ثم نزّل توقيتها. لا يُرفع تسجيلك إلى أي مكان.
-- **[مجموعة البيانات](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v3.3):** ١١١ ختمةً من
+- **[مجموعة البيانات](https://github.com/voltarostudio/quran-word-align/releases/tag/dataset-v3.4):** ١١١ ختمةً من
   mp3quran.net بروايات حفص وورش وقالون، موقّتةٌ كلمةً كلمة، ومعها بسملة كل قارئ واستعاذته بصوته، وكلمات البسملة في ملف كل سورة، وهل بسملة كل ملف وتعوّذه بصوت قارئه، وكيف يبدأ كل ملف، ومباحةٌ برخصة CC-BY 4.0.
   وهي على [Hugging Face](https://huggingface.co/datasets/voltarostudio/quran-word-timings-mp3quran) أيضًا.
 

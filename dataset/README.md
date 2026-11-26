@@ -15,7 +15,7 @@ configs:
   data_files: words.csv
 ---
 
-# Quran word timings on mp3quran.net recordings (v3.3)
+# Quran word timings on mp3quran.net recordings (v3.4)
 
 When each word of the Quran starts and ends in 111 recitations from
 [mp3quran.net](https://www.mp3quran.net): 103 in the reading of Hafs (some of them mujawwad),
@@ -37,7 +37,7 @@ recording on mp3quran.net, and `audio-sha256.csv` fingerprints the exact file we
 | `ayah-timings.csv` | each ayah's start and end, `reciter, surah, ayah, start_ms, end_ms`: ayah timings found from the audio, right where mp3quran's are off |
 | `basmala.csv` | each reciter's own basmala, `reciter, surah, start_ms, end_ms, confidence`: where it is in that surah's file, the clearest found, for apps that play it before a surah whose recording lacks one; only a clip in the reciter's own voice (see `basmala_own_voice`) |
 | `istiadha.csv` | the isti'adha, for the reciters who say it (before al-Fatiha or al-Baqarah), same columns: for apps that play it once when listening begins; only a clip in the reciter's own voice (see `istiadha_own_voice`) |
-| `openings.csv` | how each surah's file opens, `reciter, surah, has_istiadha, has_basmala, basmala_own_voice, istiadha_own_voice, first_word_ms, istiadha_end_ms`: 1 or 0 when it can be told, empty when not (a 0 is given only when sure, so an app that adds the reciter's basmala where it is 0 never doubles one); `first_word_ms`, where ayah 1 begins; `istiadha_end_ms`, where a clearly heard isti'adha ends; `basmala_own_voice`, 1 when the file's basmala is said in the voice of the reciter who reads the surah, 0 when another reader says it (many of mp3quran's files open with one short clip, the same in each file, in a voice unlike the reciter's), empty when not checked; `istiadha_own_voice`, the same for a clearly heard isti'adha |
+| `openings.csv` | how each surah's file opens, `reciter, surah, has_istiadha, has_basmala, basmala_own_voice, istiadha_own_voice, first_word_ms, istiadha_end_ms, reciter_starts_ms`: 1 or 0 when it can be told, empty when not (a 0 is given only when sure, so an app that adds the reciter's basmala where it is 0 never doubles one); `first_word_ms`, where ayah 1 begins; `istiadha_end_ms`, where a clearly heard isti'adha ends; `basmala_own_voice`, 1 when the file's basmala is said in the voice of the reciter who reads the surah, 0 when another reader says it (many of mp3quran's files open with one short clip, the same in each file, in a voice unlike the reciter's), empty when not checked; `istiadha_own_voice`, the same for a clearly heard isti'adha; `reciter_starts_ms`, where the reciter's own voice begins (0 when the file opens in it, else the end of what is said before it in another voice), for apps that play their own basmala and skip the file's, empty when it cannot be told |
 | `basmala_words.csv` | the basmala's four words in each surah's file that opens with one, `reciter, surah, word, start_ms, end_ms, confidence, own_voice` (word 1 to 4: بسم، الله، الرحمن، الرحيم), to light them as they are heard: given only where each word is heard clearly (confidence 0.5 or more, 0.75 on average) and the four end before ayah 1, so a light never runs ahead of the voice; other files are left out. `own_voice` is as `basmala_own_voice` in `openings.csv`: the words are given either way, as they time the file's audio whoever says it |
 | `quality.csv` | the table below |
 | `differs-from-mp3quran.csv` | ayahs we place outside mp3quran's ayah timing, to check |
@@ -243,7 +243,7 @@ mp3quran.net، ومعه بصمةُ الملف الذي وقّتناه.
 - **وفيه توقيت الآيات أيضًا** (`ayah-timings.csv`)، وجدناه من التلاوة نفسها.
 - **وبسملة كل قارئ بصوته** (`basmala.csv`): مكانها في أوضح سورةٍ عنده، لمن يشغّلها قبل سورةٍ ليس في تسجيلها بسملة.
 - **والتعوّذ بصوت القارئ** (`istiadha.csv`) لمن قرأه منهم، لمن يشغّله مرةً عند بدء الاستماع.
-- **وبداية كل سورة** (`openings.csv`): هل يبدأ ملفها بتعوّذ أو ببسملة (1 أو 0، وفارغٌ إن لم نستطع الحكم)، وأين تبدأ كلمتها الأولى، وأين ينتهي التعوّذ إن سُمع واضحًا، وهل البسملة والتعوّذ فيه بصوت القارئ نفسه (فكثيرٌ من ملفات mp3quran يبدأ بمقطعٍ بصوتٍ آخر).
+- **وبداية كل سورة** (`openings.csv`): هل يبدأ ملفها بتعوّذ أو ببسملة (1 أو 0، وفارغٌ إن لم نستطع الحكم)، وأين تبدأ كلمتها الأولى، وأين ينتهي التعوّذ إن سُمع واضحًا، وهل البسملة والتعوّذ فيه بصوت القارئ نفسه (فكثيرٌ من ملفات mp3quran يبدأ بمقطعٍ بصوتٍ آخر)، ومن أين يبدأ صوت القارئ نفسه، لمن يشغّل بسملته هو ويتخطّى ما قبله.
 - **وكلمات البسملة في كل ملف** (`basmala_words.csv`): متى تبدأ كل كلمة من كلماتها الأربع وتنتهي، لتُضاء مع القراءة. لا تُذكر إلا حيث سُمعت كل كلمة بوضوح، حتى لا يسبق الضوءُ صوتَ القارئ. ويبيّن عمود `own_voice` هل البسملة بصوت القارئ نفسه.
 - **وجدنا مواضع الآيات بأنفسنا** من التسجيل، فصحّت حيث أخطأ توقيت الآيات في mp3quran، وهو خاطئٌ بآيةٍ أو
   أكثر في بعض السور.
