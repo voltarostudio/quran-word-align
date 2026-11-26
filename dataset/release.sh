@@ -20,7 +20,7 @@ PY=$REPO/.venv/bin/python
 cd $REPO
 
 [[ -s $NOTES ]] || { echo "no release notes in $NOTES"; exit 1 }
-grep -q "Quran.com" $NOTES || { echo "the notes must say nothing comes from Quran.com"; exit 1 }
+grep -qiE "Quran\.com|CC-BY|licen[cs]e" $NOTES && { echo "the notes give what is new only: the licence and sources are on the dataset page"; exit 1 }
 [[ -z $(git status --porcelain -- dataset quran_word_align tests) ]] || { echo "commit the code first"; exit 1 }
 gh release view dataset-v$VERSION >/dev/null 2>&1 && { echo "dataset-v$VERSION is already published"; exit 1 }
 $PY -m pytest -q tests/
@@ -39,7 +39,7 @@ $(cat $NOTES)
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 git push -q
 
-gh release create dataset-v$VERSION $OUT.zip --title "Quran word timings on mp3quran.net, v$VERSION (CC-BY 4.0)" --notes-file $NOTES
+gh release create dataset-v$VERSION $OUT.zip --title "Quran word timings on mp3quran.net, v$VERSION" --notes-file $NOTES
 $PY -c "
 from huggingface_hub import HfApi
 print('Hugging Face', HfApi().upload_folder(folder_path='$OUT', repo_id='$HF', repo_type='dataset',
