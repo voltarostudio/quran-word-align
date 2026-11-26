@@ -268,3 +268,22 @@ def test_a_reciters_istiadha_is_chosen_again_in_their_own_voice(tmp_path):
     in_own_voice(places, heard, tmp_path)
     assert places["openings"]["1"]["istiadha_own_voice"] == 1 and places["openings"]["2"]["istiadha_own_voice"] == 0
     assert places["istiadha"]["surah"] == 1
+
+
+def test_playback_starts_where_the_reciters_own_voice_begins():
+    """An app that plays its own basmala skips what a file says first in another voice; it must never
+    skip into the reciter's own words, nor be told a place where it cannot be told."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent / "dataset"))
+    from build import reciter_starts
+    basmala = [[1, 40, 500, 0.9], [2, 500, 1100, 0.9], [3, 1100, 1900, 0.9], [4, 1900, 2700, 0.9]]
+    own = {"has_istiadha": 0, "has_basmala": 1, "basmala_own_voice": 1, "basmala_words": basmala, "first_word_ms": 2700}
+    assert reciter_starts(own) == 0
+    assert reciter_starts({**own, "basmala_own_voice": 0}) == 2700                       # a pasted basmala
+    pasted = {**own, "has_istiadha": 1, "istiadha_own_voice": 0, "istiadha_end_ms": 4000,
+              "basmala_words": [[w, a + 4000, b + 4000, c] for w, a, b, c in basmala], "first_word_ms": 6700}
+    assert reciter_starts(pasted) == 4000                                                 # isti'adha pasted, basmala theirs
+    assert reciter_starts({**pasted, "basmala_own_voice": 0}) == 6700
+    assert reciter_starts({**own, "basmala_own_voice": None}) is None                    # not checked: not told
+    assert reciter_starts({**own, "has_basmala": 0, "basmala_words": None}) == 0

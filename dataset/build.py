@@ -135,6 +135,25 @@ def mp3quran_rows(mp3quran: Path, read_id: int, surah: int) -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def reciter_starts(row: dict) -> int | None:
+    """Where the reciter's own voice begins in a surah's file, in ms: 0 when it opens in their voice, the end
+    of what is said in another voice before it (an isti'adha, a basmala) otherwise; None when it cannot be told."""
+    start = 0
+    if row.get("has_istiadha") == 1:
+        if row.get("istiadha_own_voice") is None:
+            return None
+        if row["istiadha_own_voice"] == 0:
+            start = row["istiadha_end_ms"]
+    if row.get("has_basmala") == 1 and row.get("basmala_words"):
+        if row.get("basmala_own_voice") is None:
+            return None
+        if row["basmala_own_voice"] == 0:
+            start = max(start, row["basmala_words"][-1][2])
+    elif row.get("has_basmala") is None:
+        return None
+    return start
+
+
 def in_own_voice(places: dict, heard: dict, audio: Path) -> None:
     """Marks each file's basmala and isti'adha as in the reciter's own voice (1) or another's (0), and
     drops the reciter's basmala or isti'adha when the chosen clip is in another's (each is chosen again
@@ -263,8 +282,10 @@ def build(aligned: Path, mp3quran: Path, audio: Path, out: Path, version: str, b
                       ["reciter", "surah", "start_ms", "end_ms", "confidence"])
         opened = [(slug, int(surah), row) for i, slug in present
                   for surah, row in sorted(places[i].get("openings", {}).items(), key=lambda kv: int(kv[0]))]
-        fields = ["has_istiadha", "has_basmala", "basmala_own_voice", "istiadha_own_voice", "first_word_ms", "istiadha_end_ms"]
-        write_csv("openings.csv", [{"reciter": slug, "surah": surah, **{k: row.get(k) for k in fields}}
+        fields = ["has_istiadha", "has_basmala", "basmala_own_voice", "istiadha_own_voice", "first_word_ms", "istiadha_end_ms",
+                  "reciter_starts_ms"]
+        write_csv("openings.csv", [{"reciter": slug, "surah": surah, **{k: row.get(k) for k in fields[:-1]},
+                                    "reciter_starts_ms": reciter_starts(row) if heard else None}
                                    for slug, surah, row in opened], ["reciter", "surah", *fields])
         write_csv("basmala_words.csv", [{"reciter": slug, "surah": surah, "word": w, "start_ms": a, "end_ms": b, "confidence": c,
                                          "own_voice": row.get("basmala_own_voice")}
