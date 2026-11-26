@@ -25,7 +25,7 @@ import numpy as np
 from quran_word_align.align import SAMPLE_RATE, Model, decode, opening
 
 SURAH_SECONDS = 12.0     # how much of the surah, from its first word, stands for the reciter's voice
-REPEAT = 0.8             # a clip this like one of the reciter's clips in another voice is that pasted clip again
+REPEAT = 0.8             # two clips this alike are one recording, pasted in both files
 SAME_VOICE = 0.35        # a basmala is in the reciter's voice when like the surah after it, or the reciter, at least this much
 
 
@@ -75,17 +75,31 @@ def cut(wave: np.ndarray, start_ms: float, end_ms: float) -> np.ndarray:
     return wave[int(start_ms * SAMPLE_RATE / 1000): int(end_ms * SAMPLE_RATE / 1000)]
 
 
-def same_voice(v: dict) -> bool:
-    """Whether a clip's voice is the reciter's: like the surah after it in its file, or the reciter's mean
-    voice, and not the same pasted clip as one of theirs in another voice (`repeat`: how like it is)."""
-    if (v.get("repeat") or 0) >= REPEAT:
-        return False
+def likeness(v: dict) -> float | None:
+    """How like the reciter's voice a clip is: like the surah after it in its file, or their mean voice."""
     known = [x for x in (v.get("file", v.get("basmala")), v.get("reciter")) if x is not None]
-    return not known or max(known) >= SAME_VOICE
+    return max(known) if known else None
+
+
+def same_voice(v: dict) -> bool:
+    """Whether a clip's voice is the reciter's. A clip pasted in several files (`copies`: the median
+    likeness of all its copies) is judged as one, so that no single copy near the line decides it."""
+    alone = v.get("copies", likeness(v))
+    return alone is None or alone >= SAME_VOICE
 
 
 def cos(a, b) -> float | None:
     return None if a is None or b is None else round(float(a @ b / np.linalg.norm(b)), 3)
+
+
+def surah_voice_from(timed: Path, first: int) -> int:
+    """Where the surah's own words begin, for its reciter's voice: ayah 1, but in Hafs al-Fatiha ayah 2,
+    as its first ayah is the basmala, which may be a pasted clip like the isti'adha before it."""
+    if timed.stem == "001" and timed.exists():
+        t = json.loads(timed.read_text())
+        if [len(t.get(str(a), [])) for a in range(2, 4)] == [4, 2]:
+            return t["2"][0][1]
+    return first
 
 
 def istiadha_words(model, mp3: Path, timed: Path) -> list[list] | None:
@@ -107,9 +121,10 @@ def read_voices(job) -> tuple[str, dict]:
         mp3, first = folder / f"{int(surah):03d}.mp3", row.get("first_word_ms")
         if first is None or not mp3.exists():
             continue
-        wave = decode(mp3, first / 1000 + SURAH_SECONDS)
+        own = surah_voice_from(aligned / read / f"{int(surah):03d}.json", first)
+        wave = decode(mp3, own / 1000 + SURAH_SECONDS)
         waves[surah] = wave
-        surahs[surah] = voices(cut(wave, first, first + SURAH_SECONDS * 1000))
+        surahs[surah] = voices(cut(wave, own, own + SURAH_SECONDS * 1000))
         if row.get("basmala_words"):
             w = row["basmala_words"]
             basmalas[surah] = voices(cut(wave, w[0][1], w[-1][2]))
@@ -123,8 +138,8 @@ def read_voices(job) -> tuple[str, dict]:
     out = {"files": {s: {"basmala": cos(b, surahs.get(s)), "reciter": cos(b, reciter)} for s, b in basmalas.items()},
            "istiadhas": {s: {"file": cos(e, surahs.get(s)), "reciter": cos(e, reciter), "words": w}
                          for s, (w, e) in istiadhas.items()}}
-    # A pasted clip is one recording repeated in many files: one heard in another voice exposes the others,
-    # even where one of them happens to come near the reciter's voice.
+    # A pasted clip is one recording repeated in many files, its copies a little above or below the line by
+    # chance: all its copies (clips at least REPEAT alike) are judged together, by their median likeness.
     clips = [(out["files"][s], e) for s, e in basmalas.items()] + [(out["istiadhas"][s], e) for s, (_, e) in istiadhas.items()]
     for kind in ("basmala", "istiadha"):
         chosen = places.get(kind)
@@ -136,10 +151,12 @@ def read_voices(job) -> tuple[str, dict]:
             e = voices(cut(wave, chosen["start_ms"], chosen["end_ms"]))
             out[kind] = {"surah": chosen["surah"], "reciter": cos(e, reciter)}
             clips.append((out[kind], e))
-    other = [(v, e) for v, e in clips if e is not None and not same_voice(v)]
     for v, e in clips:
-        likes = [cos(e, o) for w, o in other if w is not v]
-        v["repeat"] = max(likes) if e is not None and likes else None
+        if e is None:
+            continue
+        copies = [likeness(w) for w, o in clips if o is not None and float(e @ o) >= REPEAT and likeness(w) is not None]
+        if len(copies) > 1:
+            v["copies"] = round(float(np.median(copies)), 3)
     return read, out
 
 

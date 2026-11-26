@@ -5,7 +5,9 @@ What changed in each version of the dataset. What the files hold, and the licenc
 
 ## v3.5 — A truer voice check
 
-- A pasted clip repeats across a reciter's files. A copy that happens to come near the reciter's voice is now caught by its likeness to the copies heard in another voice. Checked by ear on a sample.
+- A clip pasted across a reciter's files is judged as one, by all its copies, so that no single copy near the line decides it.
+- In al-Fatiha, the reciter's voice is taken from ayah 2, since ayah 1, the basmala, may be part of the pasted clip.
+- Checked by ear on 16 clips; all 16 agree.
 - `openings.csv`, `basmala_words.csv`, `basmala.csv` and `istiadha.csv` follow from it.
 
 ## v3.4 — Where the reciter's voice begins

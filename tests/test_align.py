@@ -310,15 +310,30 @@ def test_audio_check_flags_changed_and_gone_recordings(tmp_path, monkeypatch, ca
     assert [r.split(",")[2] for r in (tmp_path / "out.csv").read_text().splitlines()[1:]] == ["1", "2"]
 
 
-def test_a_pasted_clip_near_the_reciters_voice_is_still_caught():
-    """One pasted clip repeats across a reciter's files; where one copy happens to come near the reciter's
-    voice (Basel heard such isti'adhas at 0.355 and 0.359 as another voice), its likeness to the copies
-    heard in another voice gives it away."""
+def test_a_pasted_clip_is_judged_by_all_its_copies():
+    """One clip pasted across a reciter's files is judged by the median of its copies, so no single copy
+    near the line decides: Basel heard isti'adhas at 0.355 and 0.359 as another voice (their copies lie far
+    below), and Basfar's own basmala, pasted in some 50 files at 0.34 to 0.44, as his."""
     import sys
     from pathlib import Path
     sys.path.insert(0, str(Path(__file__).parent.parent / "dataset"))
-    from voice import REPEAT, SAME_VOICE, same_voice
+    from voice import SAME_VOICE, same_voice
     near = {"file": SAME_VOICE + 0.01, "reciter": SAME_VOICE - 0.1}
-    assert same_voice(near)
-    assert not same_voice({**near, "repeat": REPEAT + 0.1})              # the pasted clip again
-    assert same_voice({"file": 0.7, "reciter": 0.7, "repeat": REPEAT - 0.1})   # the reciter's own readings
+    assert same_voice(near)                                             # alone, judged by itself
+    assert not same_voice({**near, "copies": 0.15})                    # copies of a clip in another voice
+    assert same_voice({"file": SAME_VOICE - 0.01, "reciter": 0.2, "copies": SAME_VOICE + 0.03})   # Basfar's
+
+
+def test_al_fatihas_voice_is_taken_after_its_basmala(tmp_path):
+    """In Hafs al-Fatiha's file the first ayah is the basmala, often pasted with the isti'adha before it;
+    the reciter's voice there is taken from ayah 2, or a pasted isti'adha is likened to itself (al-Budair)."""
+    import json as j
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent / "dataset"))
+    from voice import surah_voice_from
+    w = lambda n, at: [[i + 1, at + i * 100, at + i * 100 + 90, 0.9] for i in range(n)]
+    (tmp_path / "001.json").write_text(j.dumps({"1": w(4, 5000), "2": w(4, 9000), "3": w(2, 12000)}))
+    (tmp_path / "112.json").write_text(j.dumps({"1": w(4, 3000)}))
+    assert surah_voice_from(tmp_path / "001.json", 5000) == 9000
+    assert surah_voice_from(tmp_path / "112.json", 3000) == 3000
