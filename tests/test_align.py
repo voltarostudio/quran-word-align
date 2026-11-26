@@ -289,3 +289,22 @@ def test_playback_starts_where_the_reciters_own_voice_begins():
     assert reciter_starts({**own, "has_basmala": 0, "basmala_words": None}) == 0
     fatiha = {"has_istiadha": 1, "istiadha_own_voice": 0, "istiadha_end_ms": 4360, "has_basmala": 1, "first_word_ms": 4320}
     assert reciter_starts(fatiha) == 4320                                                # al-Fatiha's basmala is ayah 1
+
+
+def test_audio_check_flags_changed_and_gone_recordings(tmp_path, monkeypatch, capsys):
+    """A recording mp3quran replaced (another size) or removed is reported, as its timings no longer fit;
+    one the server could not be reached for is not taken as changed."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
+    import check_audio
+    rows = "reciter,read_id,surah,url,bytes,sha256\n" + "".join(f"r,1,{i},u{i},100,x\n" for i in range(4))
+    (tmp_path / "fp.csv").write_text(rows)
+    served = {"u0": 100, "u1": 120, "u2": None, "u3": -1}          # same, replaced, gone, not reached
+    monkeypatch.setattr(check_audio, "served_size", served.get)
+    monkeypatch.setattr(sys, "argv", ["check_audio", str(tmp_path / "fp.csv"), "--out", str(tmp_path / "out.csv")])
+    with pytest.raises(SystemExit) as done:
+        check_audio.main()
+    assert done.value.code == 1
+    assert "4 recordings: 2 changed or gone, 1 not reached" in capsys.readouterr().out
+    assert [r.split(",")[2] for r in (tmp_path / "out.csv").read_text().splitlines()[1:]] == ["1", "2"]
