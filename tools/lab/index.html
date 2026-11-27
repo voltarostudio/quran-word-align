@@ -315,12 +315,12 @@ function card(m) {
     <div><div class="ayah" style="font-family:'KFGQPC Hafs',serif">${text}</div>
       <div><span class="how">${m.how}</span> <span class="ref">· سورة ${m.surah}، الآية ${m.ayah}</span></div></div>
     <div class="takes">${take(m, "correct", "صحيحة")}${take(m, "mistake", "بالخطأ")}</div>`;
-  el.querySelectorAll("[data-rec]").forEach(b => b.onclick = () => record(m, b.dataset.rec, b));
+  el.querySelectorAll("[data-rec]").forEach(b => b.onpointerdown = e => { e.preventDefault(); record(m, b.dataset.rec, b); });
   return el;
 }
 function take(m, t, label) {
   const has = file(m, t);
-  return `<div class="take"><button class="btn ${t === "mistake" ? "" : "main"}" data-rec="${t}">● ${has ? "أعد" : "سجّل"} ${label}</button>
+  return `<div class="take"><button class="btn ${t === "mistake" ? "" : "main"}" data-rec="${t}"><span>● ${has ? "أعد" : "سجّل"} ${label}</span></button>
     ${has ? `<audio controls preload="none" src="/recordings/${has}?v=${Date.now()}"></audio>` : ""}</div>`;
 }
 function list() {
@@ -340,10 +340,12 @@ async function record(m, t, b) {
   document.querySelectorAll("audio").forEach(a => a.pause());
   const parts = [], rec = new MediaRecorder(mic, { mimeType: MIME }), s0 = Date.now();
   rec.ondataavailable = e => e.data.size && parts.push(e.data);
-  const timer = setInterval(() => b.textContent = `■ أوقف ${Math.floor((Date.now() - s0) / 1000)}ث`, 250);
+  const label = b.firstElementChild;
+  const tick = () => label.textContent = `■ أوقف ${Math.floor((Date.now() - s0) / 1000)}ث`;
+  tick(); const timer = setInterval(tick, 500);
   rec.onstop = async () => {
     clearInterval(timer); live = null;
-    b.textContent = "… يُحفظ"; b.classList.remove("rec");
+    label.textContent = "… يُحفظ"; b.classList.remove("rec");
     try {
       const res = await fetch(`/recording/${m.id}/${t}`, { method: "POST", headers: { "Content-Type": MIME }, body: new Blob(parts, { type: MIME }) });
       const r = await res.json();
