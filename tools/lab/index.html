@@ -299,48 +299,64 @@ addEventListener("keydown", e => {
 });
 
 // ---------- deliberate mistakes ----------
-let recorder;
-function list() {
-  const box = $("#list"); box.innerHTML = "";
-  sample.mistakes.forEach(m => {
-    const card = document.createElement("div");
-    const done = ["correct", "mistake"].every(t => file(m, t));
-    card.className = "card m" + (done ? " done" : "");
-    const text = m.words.map((w, i) => i + 1 === m.word ? `<mark>${w}</mark>` : w).join(" ");
-    card.innerHTML = `<div class="n">${m.id}</div>
-      <div><div class="ayah" style="font-family:'KFGQPC Hafs',serif">${text}</div>
-        <div><span class="how">${m.how}</span> <span class="ref">· سورة ${m.surah}، الآية ${m.ayah}</span></div></div>
-      <div class="takes">${take(m, "correct", "صحيحة")}${take(m, "mistake", "بالخطأ")}</div>`;
-    box.appendChild(card);
-  });
-  box.querySelectorAll("[data-rec]").forEach(b => b.onclick = () => record(b));
-}
+// One microphone stream for the whole visit, one recording at a time, and only the card that was
+// recorded is redrawn, so the page never jumps back to the top.
 const MIME = ["audio/webm", "audio/mp4"].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "audio/webm";
 const stem = (m, t) => `${String(m.id).padStart(2, "0")}-${t}.`;
 const file = (m, t) => [...recordings].find(r => r.startsWith(stem(m, t)));
+let mic, live, busy = false;
+
+function card(m) {
+  const el = document.createElement("div");
+  el.id = `m${m.id}`;
+  el.className = "card m" + (["correct", "mistake"].every(t => file(m, t)) ? " done" : "");
+  const text = m.words.map((w, i) => i + 1 === m.word ? `<mark>${w}</mark>` : w).join(" ");
+  el.innerHTML = `<div class="n">${m.id}</div>
+    <div><div class="ayah" style="font-family:'KFGQPC Hafs',serif">${text}</div>
+      <div><span class="how">${m.how}</span> <span class="ref">· سورة ${m.surah}، الآية ${m.ayah}</span></div></div>
+    <div class="takes">${take(m, "correct", "صحيحة")}${take(m, "mistake", "بالخطأ")}</div>`;
+  el.querySelectorAll("[data-rec]").forEach(b => b.onclick = () => record(m, b.dataset.rec, b));
+  return el;
+}
 function take(m, t, label) {
   const has = file(m, t);
-  return `<div class="take"><button class="btn ${t === "mistake" ? "" : "main"}" data-rec="${m.id},${t}">● ${has ? "أعد" : "سجّل"} ${label}</button>
-    ${has ? `<audio controls preload="none" src="/recordings/${file(m, t)}?${Date.now()}"></audio>` : ""}</div>`;
+  return `<div class="take"><button class="btn ${t === "mistake" ? "" : "main"}" data-rec="${t}">● ${has ? "أعد" : "سجّل"} ${label}</button>
+    ${has ? `<audio controls preload="none" src="/recordings/${has}?v=${Date.now()}"></audio>` : ""}</div>`;
 }
-async function record(b) {
-  const [id, t] = b.dataset.rec.split(",");
-  if (recorder) { recorder.stop(); return; }
-  let stream;
+function list() {
+  const box = $("#list"); box.innerHTML = "";
+  sample.mistakes.forEach(m => box.appendChild(card(m)));
+}
+const redraw = m => $(`#m${m.id}`).replaceWith(card(m));
+
+async function record(m, t, b) {
+  if (live) { if (live.m === m && live.t === t) live.rec.stop(); return; }   // only its own button stops it
+  if (busy) return;
+  busy = true;
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-  } catch (e) { $("#saved").textContent = "الميكروفون غير مسموح في هذا المتصفح، افتح الصفحة في Safari أو Chrome"; return; }
-  const parts = []; recorder = new MediaRecorder(stream, { mimeType: MIME });
-  recorder.ondataavailable = e => parts.push(e.data);
-  recorder.onstop = async () => {
-    stream.getTracks().forEach(x => x.stop()); recorder = null; clearInterval(timer);
-    const r = await (await fetch(`/recording/${id}/${t}`, { method: "POST", headers: { "Content-Type": MIME }, body: new Blob(parts, { type: MIME }) })).json();
-    [...recordings].filter(x => x.startsWith(stem({ id }, t))).forEach(x => recordings.delete(x));
-    recordings.add(r.saved); $("#saved").textContent = "حُفظ التسجيل ✓"; list();
-  };
-  recorder.start();
-  b.classList.add("rec"); const s0 = Date.now();
+    if (!mic || mic.getTracks().some(x => x.readyState === "ended"))
+      mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  } catch (e) { busy = false; $("#saved").textContent = "الميكروفون غير مسموح، افتح الصفحة في Safari"; return; }
+  document.querySelectorAll("audio").forEach(a => a.pause());
+  const parts = [], rec = new MediaRecorder(mic, { mimeType: MIME }), s0 = Date.now();
+  rec.ondataavailable = e => e.data.size && parts.push(e.data);
   const timer = setInterval(() => b.textContent = `■ أوقف ${Math.floor((Date.now() - s0) / 1000)}ث`, 250);
+  rec.onstop = async () => {
+    clearInterval(timer); live = null;
+    b.textContent = "… يُحفظ"; b.classList.remove("rec");
+    try {
+      const res = await fetch(`/recording/${m.id}/${t}`, { method: "POST", headers: { "Content-Type": MIME }, body: new Blob(parts, { type: MIME }) });
+      const r = await res.json();
+      [...recordings].filter(x => x.startsWith(stem(m, t))).forEach(x => recordings.delete(x));
+      recordings.add(r.saved);
+      $("#saved").textContent = `حُفظ ${m.id} ✓`;
+    } catch (e) { $("#saved").textContent = `لم يُحفظ ${m.id}، أعد التسجيل`; }
+    busy = false; redraw(m);
+  };
+  rec.start(1000);
+  live = { m, t, rec };
+  b.classList.add("rec");
+  busy = false;
 }
 
 // ---------- start ----------
