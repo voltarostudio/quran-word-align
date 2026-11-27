@@ -306,7 +306,7 @@ addEventListener("keydown", e => {
 const MIME = ["audio/webm", "audio/mp4"].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "audio/webm";
 const stem = (m, t) => `${String(m.id).padStart(2, "0")}-${t}.`;
 const file = (m, t) => [...recordings].find(r => r.startsWith(stem(m, t)));
-let mic, live, busy = false;
+let mic, tap, live, busy = false;
 const broken = new Set();
 
 function card(m) {
@@ -342,24 +342,30 @@ async function record(m, t, b) {
       mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
   } catch (e) { busy = false; $("#saved").textContent = "الميكروفون غير مسموح، اسمح له من أيقونة القفل بجانب العنوان"; return; }
   document.querySelectorAll("audio").forEach(a => a.pause());
+  // The microphone stays wired to a silent output for the whole visit, so the Mac keeps it awake
+  // between takes. Recording starts only once it is giving sound, not the zeros of a waking device.
+  if (!tap || tap.mic !== mic) {
+    ctx = ctx || new AudioContext();
+    const an = ctx.createAnalyser(), hush = ctx.createGain();
+    an.fftSize = 2048; hush.gain.value = 0;
+    ctx.createMediaStreamSource(mic).connect(an); an.connect(hush); hush.connect(ctx.destination);
+    tap = { mic, an, frame: new Float32Array(2048) };
+  }
+  await ctx.resume();
+  const peak = () => { tap.an.getFloatTimeDomainData(tap.frame); return tap.frame.reduce((a, v) => Math.max(a, Math.abs(v)), 0); };
+  b.firstElementChild.textContent = "… لحظة";
+  for (let i = 0; i < 40 && peak() < 1e-6; i++) await new Promise(r => setTimeout(r, 50));
   const parts = [], rec = new MediaRecorder(mic, { mimeType: MIME }), s0 = Date.now();
-  // A live level, and a count of time the microphone gave pure digital silence (it dropped out).
-  ctx = ctx || new AudioContext(); ctx.resume();
-  // The analyser only runs when the graph reaches the speakers, so it goes there through a silent gain.
-  const an = ctx.createAnalyser(), hush = ctx.createGain(), src = ctx.createMediaStreamSource(mic);
-  an.fftSize = 2048; hush.gain.value = 0; src.connect(an); an.connect(hush); hush.connect(ctx.destination);
-  const frame = new Float32Array(an.fftSize);
   const meter = setInterval(() => {
-    an.getFloatTimeDomainData(frame);
-    const peak = frame.reduce((a, v) => Math.max(a, Math.abs(v)), 0);
-    b.style.setProperty("--lvl", Math.min(100, Math.max(0, (20 * Math.log10(peak + 1e-9) + 60) / 60 * 100)) + "%");
+    const p = peak();
+    b.style.setProperty("--lvl", Math.min(100, Math.max(0, (20 * Math.log10(p + 1e-9) + 60) / 60 * 100)) + "%");
   }, 100);
   rec.ondataavailable = e => e.data.size && parts.push(e.data);
   const label = b.firstElementChild;
   const tick = () => label.textContent = `■ أوقف ${Math.floor((Date.now() - s0) / 1000)}ث`;
   tick(); const timer = setInterval(tick, 500);
   rec.onstop = async () => {
-    clearInterval(meter); src.disconnect(); an.disconnect(); hush.disconnect();
+    clearInterval(meter);
     // A dropout is judged from what was recorded: half a second or more of near-zero samples. A
     // dropped microphone decodes to about 1e-34; the quietest pause in a room is about 1e-2.
     const blob = new Blob(parts, { type: MIME });
