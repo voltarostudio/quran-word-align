@@ -99,7 +99,11 @@ def mistakes_in(word):
         marks = word[i + 1: letters[k + 1][0] if k + 1 < len(letters) else len(word)]
         if ch in "نم" and SHADDA in marks:
             found.append(("ghunna", f"اقرأ «{ch}ّ» بلا غنّة"))
-        if MADDAH in marks:
+        # A madd inside the word (muttasil before a hamza, lazim before a shadda or sukun) must be
+        # long. A maddah on the word's last letter is munfasil, which Hafs may shorten: not a mistake.
+        # An alif after a hamza (أٓ, as in ٱلۡأٓخِرَة) is madd badal, two counts: not a long madd either.
+        badal = ch in "أآ" or (ch == "ا" and k and letters[k - 1][1] in "ءأإؤئ")
+        if MADDAH in marks and k + 1 < len(letters) and not badal:
             found.append(("madd", "اقصر المدّ فيها إلى حركتين"))
         if ch in QALQALA and SUKUN in marks:
             found.append(("qalqala", f"اقرأ «{ch}» الساكنة بلا قلقلة"))
