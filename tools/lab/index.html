@@ -71,6 +71,8 @@
   .takes { display: grid; gap: 8px; min-width: 260px; }
   .take { display: flex; align-items: center; gap: 8px; }
   .take audio { height: 32px; width: 150px; }
+  .btn.rec { background-image: linear-gradient(90deg, rgba(255,255,255,.35) var(--lvl, 0%), transparent 0); }
+  .broken { color: var(--warn); font-size: 13px; font-weight: 600; }
   .intro { margin-bottom: 18px; color: var(--muted); }
 </style>
 </head>
@@ -305,6 +307,7 @@ const MIME = ["audio/webm", "audio/mp4"].find(t => window.MediaRecorder && Media
 const stem = (m, t) => `${String(m.id).padStart(2, "0")}-${t}.`;
 const file = (m, t) => [...recordings].find(r => r.startsWith(stem(m, t)));
 let mic, live, busy = false;
+const broken = new Set();
 
 function card(m) {
   const el = document.createElement("div");
@@ -321,7 +324,8 @@ function card(m) {
 function take(m, t, label) {
   const has = file(m, t);
   return `<div class="take"><button class="btn ${t === "mistake" ? "" : "main"}" data-rec="${t}"><span>● ${has ? "أعد" : "سجّل"} ${label}</span></button>
-    ${has ? `<audio controls preload="none" src="/recordings/${has}?v=${Date.now()}"></audio>` : ""}</div>`;
+    ${has ? `<audio controls preload="none" src="/recordings/${has}?v=${Date.now()}"></audio>` : ""}
+    ${broken.has(stem(m, t)) ? `<span class="broken">انقطع الصوت، أعده</span>` : ""}</div>`;
 }
 function list() {
   const box = $("#list"); box.innerHTML = "";
@@ -336,14 +340,27 @@ async function record(m, t, b) {
   try {
     if (!mic || mic.getTracks().some(x => x.readyState === "ended"))
       mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-  } catch (e) { busy = false; $("#saved").textContent = "الميكروفون غير مسموح، افتح الصفحة في Safari"; return; }
+  } catch (e) { busy = false; $("#saved").textContent = "الميكروفون غير مسموح، اسمح له من أيقونة القفل بجانب العنوان"; return; }
   document.querySelectorAll("audio").forEach(a => a.pause());
   const parts = [], rec = new MediaRecorder(mic, { mimeType: MIME }), s0 = Date.now();
+  // A live level, and a count of time the microphone gave pure digital silence (it dropped out).
+  ctx = ctx || new AudioContext(); ctx.resume();
+  const an = ctx.createAnalyser(); an.fftSize = 2048; ctx.createMediaStreamSource(mic).connect(an);
+  const frame = new Float32Array(an.fftSize); let dead = 0;
+  const meter = setInterval(() => {
+    an.getFloatTimeDomainData(frame);
+    const peak = frame.reduce((a, v) => Math.max(a, Math.abs(v)), 0);
+    if (peak === 0) dead += 0.1;
+    b.style.setProperty("--lvl", Math.min(100, Math.max(0, (20 * Math.log10(peak + 1e-9) + 60) / 60 * 100)) + "%");
+  }, 100);
   rec.ondataavailable = e => e.data.size && parts.push(e.data);
   const label = b.firstElementChild;
-  const tick = () => label.textContent = `■ أوقف ${Math.floor((Date.now() - s0) / 1000)}ث`;
+  const tick = () => label.textContent = dead > 0.5 ? "⚠ الميكروفون لا يلتقط، أوقف وأعد" : `■ أوقف ${Math.floor((Date.now() - s0) / 1000)}ث`;
   tick(); const timer = setInterval(tick, 500);
   rec.onstop = async () => {
+    clearInterval(meter); an.disconnect();
+    if (dead > 0.5) broken.add(stem(m, t)); else broken.delete(stem(m, t));
+    if (dead > 0.5) { mic.getTracks().forEach(x => x.stop()); mic = null; }   // open it afresh next time
     clearInterval(timer); live = null;
     label.textContent = "… يُحفظ"; b.classList.remove("rec");
     try {
