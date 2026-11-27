@@ -345,26 +345,36 @@ async function record(m, t, b) {
   const parts = [], rec = new MediaRecorder(mic, { mimeType: MIME }), s0 = Date.now();
   // A live level, and a count of time the microphone gave pure digital silence (it dropped out).
   ctx = ctx || new AudioContext(); ctx.resume();
-  const an = ctx.createAnalyser(); an.fftSize = 2048; ctx.createMediaStreamSource(mic).connect(an);
-  const frame = new Float32Array(an.fftSize); let dead = 0;
+  // The analyser only runs when the graph reaches the speakers, so it goes there through a silent gain.
+  const an = ctx.createAnalyser(), hush = ctx.createGain(), src = ctx.createMediaStreamSource(mic);
+  an.fftSize = 2048; hush.gain.value = 0; src.connect(an); an.connect(hush); hush.connect(ctx.destination);
+  const frame = new Float32Array(an.fftSize);
   const meter = setInterval(() => {
     an.getFloatTimeDomainData(frame);
     const peak = frame.reduce((a, v) => Math.max(a, Math.abs(v)), 0);
-    if (peak === 0) dead += 0.1;
     b.style.setProperty("--lvl", Math.min(100, Math.max(0, (20 * Math.log10(peak + 1e-9) + 60) / 60 * 100)) + "%");
   }, 100);
   rec.ondataavailable = e => e.data.size && parts.push(e.data);
   const label = b.firstElementChild;
-  const tick = () => label.textContent = dead > 0.5 ? "⚠ الميكروفون لا يلتقط، أوقف وأعد" : `■ أوقف ${Math.floor((Date.now() - s0) / 1000)}ث`;
+  const tick = () => label.textContent = `■ أوقف ${Math.floor((Date.now() - s0) / 1000)}ث`;
   tick(); const timer = setInterval(tick, 500);
   rec.onstop = async () => {
-    clearInterval(meter); an.disconnect();
-    if (dead > 0.5) broken.add(stem(m, t)); else broken.delete(stem(m, t));
-    if (dead > 0.5) { mic.getTracks().forEach(x => x.stop()); mic = null; }   // open it afresh next time
+    clearInterval(meter); src.disconnect(); an.disconnect(); hush.disconnect();
+    // A dropout is judged from what was recorded: half a second or more of near-zero samples. A
+    // dropped microphone decodes to about 1e-34; the quietest pause in a room is about 1e-2.
+    const blob = new Blob(parts, { type: MIME });
+    let dead = 0;
+    try {
+      const x = (await ctx.decodeAudioData(await blob.arrayBuffer())).getChannelData(0);
+      let run = 0, rate = ctx.sampleRate;
+      for (let i = 0; i < x.length; i++) { run = Math.abs(x[i]) < 1e-6 ? run + 1 : 0; if (run === Math.round(rate / 2)) dead++; }
+    } catch (e) {}
+    if (dead) broken.add(stem(m, t)); else broken.delete(stem(m, t));
+    if (dead) { mic.getTracks().forEach(x => x.stop()); mic = null; }   // open it afresh next time
     clearInterval(timer); live = null;
     label.textContent = "… يُحفظ"; b.classList.remove("rec");
     try {
-      const res = await fetch(`/recording/${m.id}/${t}`, { method: "POST", headers: { "Content-Type": MIME }, body: new Blob(parts, { type: MIME }) });
+      const res = await fetch(`/recording/${m.id}/${t}`, { method: "POST", headers: { "Content-Type": MIME }, body: blob });
       const r = await res.json();
       [...recordings].filter(x => x.startsWith(stem(m, t))).forEach(x => recordings.delete(x));
       recordings.add(r.saved);
