@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>المختبر</title>
+<style>
+  @font-face { font-family: "KFGQPC Hafs"; src: url("fonts/kfgqpc_hafs_v30.ttf") format("truetype"); font-display: swap; }
+  @font-face { font-family: "KFGQPC Warsh"; src: url("fonts/kfgqpc_warsh_v30.ttf") format("truetype"); font-display: swap; }
+  @font-face { font-family: "KFGQPC Qalun"; src: url("fonts/kfgqpc_qalun_v30.ttf") format("truetype"); font-display: swap; }
+  :root {
+    --bg: #F6F1E7; --ink: #1E2A2B; --muted: #6B4F33; --line: #D9C7A3; --soft: #EDE3CF; --card: #FFFDF8;
+    --accent: #2F6B5A; --accent-ink: #FFFDF8; --mark: #E3EFE9; --warn: #9C3D2E; --gold: #B8924A;
+    --wave: #8FA9A0; --band: rgba(47, 107, 90, .10); --band-on: rgba(47, 107, 90, .24);
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --bg: #0B2B31; --ink: #EDE6D6; --muted: #C9A35A; --line: #1F4B52; --soft: #12434C; --card: #0F353C;
+    --accent: #6FB59A; --accent-ink: #0B2B31; --mark: #123F47; --warn: #E0A07A; --gold: #C9A35A;
+    --wave: #4F8579; --band: rgba(111, 181, 154, .10); --band-on: rgba(111, 181, 154, .26);
+  } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 -apple-system, "SF Arabic", "Geeza Pro", sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 24px; padding: 14px 28px;
+           background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+  nav { display: flex; gap: 4px; background: var(--soft); border-radius: 12px; padding: 4px; position: relative; }
+  nav button { position: relative; z-index: 1; border: 0; background: none; color: var(--ink); font: inherit; font-size: 15px;
+               padding: 6px 16px; border-radius: 9px; cursor: pointer; transition: color .3s; }
+  nav .pill { position: absolute; top: 4px; bottom: 4px; border-radius: 9px; background: var(--card);
+              box-shadow: 0 1px 4px rgba(0,0,0,.12); transition: all .45s cubic-bezier(.34, 1.4, .5, 1); }
+  .saved { margin-inline-start: auto; font-size: 14px; color: var(--muted); transition: opacity .4s; }
+  main { max-width: 1100px; margin: 0 auto; padding: 28px; }
+  .view { display: none; } .view.on { display: block; animation: rise .5s cubic-bezier(.34, 1.3, .5, 1); }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px 24px; }
+  .meta { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .meta b { font-size: 20px; } .meta span { color: var(--muted); }
+  .progress { height: 6px; background: var(--soft); border-radius: 3px; overflow: hidden; margin: 6px 0 20px; }
+  .progress i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .6s cubic-bezier(.34, 1.3, .5, 1); }
+  .wave { position: relative; margin: 18px 0 8px; touch-action: none; }
+  canvas { display: block; width: 100%; height: 170px; cursor: default; }
+  .words { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 6px; }
+  .w { border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 12px; padding: 4px 12px;
+       font-family: inherit; font-size: 28px; line-height: 1.9; cursor: pointer; transition: transform .35s cubic-bezier(.34, 1.6, .5, 1), background .3s, border-color .3s; }
+  .w:hover { transform: translateY(-2px); }
+  .w.sel { border-color: var(--accent); background: var(--mark); transform: translateY(-3px) scale(1.04); }
+  .w.ok { border-color: var(--accent); }
+  .w.ok::after { content: " ✓"; font: 14px sans-serif; color: var(--accent); }
+  .w.moved { border-color: var(--gold); }
+  .w.moved::after { content: " ✎"; font: 14px sans-serif; color: var(--gold); }
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 16px; }
+  .btn { border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: 15px;
+         padding: 8px 16px; border-radius: 11px; cursor: pointer; transition: transform .25s cubic-bezier(.34, 1.8, .5, 1), background .2s; }
+  .btn:hover { background: var(--soft); } .btn:active { transform: scale(.94); }
+  .btn.main { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .btn.rec { background: var(--warn); border-color: var(--warn); color: #fff; }
+  .btn small { opacity: .65; font-size: 12px; margin-inline-start: 6px; }
+  .grow { flex: 1; }
+  .nudge { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font-size: 14px; }
+  .nudge .btn { padding: 4px 10px; font-size: 14px; }
+  .hint { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  kbd { font: 12px ui-monospace, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; }
+  .list { display: grid; gap: 14px; }
+  .m { display: grid; grid-template-columns: 44px 1fr auto; gap: 18px; align-items: center; }
+  .m .n { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--soft); font-weight: 600; transition: background .4s; }
+  .m.done .n { background: var(--accent); color: var(--accent-ink); }
+  .ayah { font-size: 27px; line-height: 2; }
+  .ayah mark { background: var(--mark); color: inherit; border-radius: 8px; padding: 0 6px; box-shadow: inset 0 -3px 0 var(--accent); }
+  .how { font-weight: 600; color: var(--warn); }
+  .ref { color: var(--muted); font-size: 14px; }
+  .takes { display: grid; gap: 8px; min-width: 260px; }
+  .take { display: flex; align-items: center; gap: 8px; }
+  .take audio { height: 32px; width: 150px; }
+  .intro { margin-bottom: 18px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>المختبر</h1>
+  <nav><span class="pill"></span>
+    <button data-view="gold">حدود الكلمات</button>
+    <button data-view="mist">الأخطاء المتعمّدة</button>
+  </nav>
+  <span class="saved" id="saved"></span>
+</header>
+<main>
+  <section class="view" id="gold">
+    <div class="meta"><b id="who"></b><span id="where"></span><span class="grow"></span><span id="count"></span></div>
+    <div class="progress"><i id="bar"></i></div>
+    <div class="card">
+      <div class="wave"><canvas id="cv"></canvas></div>
+      <div class="words" id="words"></div>
+      <div class="tools">
+        <button class="btn main" id="playAyah">▶ الآية <small>مسافة</small></button>
+        <button class="btn" id="playWord">▶ الكلمة <small>Enter</small></button>
+        <button class="btn" id="speed">السرعة ١×</button>
+        <span class="nudge">البداية
+          <button class="btn" data-n="start,-10">أبكر</button><button class="btn" data-n="start,10">أبطأ</button></span>
+        <span class="nudge">النهاية
+          <button class="btn" data-n="end,-10">أبكر</button><button class="btn" data-n="end,10">أبطأ</button></span>
+        <span class="grow"></span>
+        <button class="btn" id="okWord">الكلمة صحيحة <small>C</small></button>
+        <button class="btn main" id="okAyah">الآية كلها صحيحة ←</button>
+      </div>
+      <div class="hint">
+        اسحب حافة الكلمة على الموجة لتصحيح بدايتها أو نهايتها، والزمن يجري من اليمين إلى اليسار كالقراءة.
+        <kbd>←</kbd> <kbd>→</kbd> للتنقل بين الكلمات، و<kbd>PageDown</kbd> <kbd>PageUp</kbd> بين الآيات.
+      </div>
+    </div>
+  </section>
+  <section class="view" id="mist">
+    <p class="intro">لكل سطر تسجيلان: الآية كما تقرؤها عادةً، ثم الآية نفسها بالخطأ المكتوب في الكلمة المعلَّمة وحده. اقرأ الآية كاملة في الحالتين.</p>
+    <div class="list" id="list"></div>
+  </section>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const FONT = { hafs: "KFGQPC Hafs", warsh: "KFGQPC Warsh", qalun: "KFGQPC Qalun" };
+const SPEEDS = [1, 0.75, 0.5];
+let sample, gold = {}, recordings = new Set(), ctx, cur = 0, sel = 0, buf, speed = 0, source, playing;
+
+// ---------- saving ----------
+let saveTimer;
+function save() {
+  clearTimeout(saveTimer);
+  $("#saved").textContent = "…";
+  saveTimer = setTimeout(async () => {
+    await fetch("/gold", { method: "POST", body: JSON.stringify(gold) });
+    $("#saved").textContent = "حُفظ ✓";
+  }, 350);
+}
+
+// ---------- tabs ----------
+function show(view) {
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === view));
+  const b = $(`nav button[data-view="${view}"]`), pill = $("nav .pill");
+  pill.style.left = b.offsetLeft + "px"; pill.style.width = b.offsetWidth + "px";
+  document.querySelectorAll("nav button").forEach(x => x.style.color = x === b ? "var(--accent)" : "");
+  location.hash = view;
+  if (view === "gold") draw();
+}
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => show(b.dataset.view));
+
+// ---------- gold ----------
+const item = () => sample.gold[cur];
+const key = it => it.clip;
+function words() {
+  const it = item(), g = gold[key(it)];
+  if (g) return g.words;
+  const fresh = it.words.map(w => ({ word: w.word, start_ms: w.start_ms, end_ms: w.end_ms, ok: false }));
+  gold[key(it)] = { reciter: it.reciter, riwayah: it.riwayah, surah: it.surah, ayah: it.ayah, words: fresh };
+  return fresh;
+}
+const rel = ms => (ms - item().clip_starts_ms) / 1000;           // dataset ms → seconds in the clip
+const abs = s => Math.round(s * 1000 + item().clip_starts_ms);
+
+async function load(i) {
+  cur = Math.max(0, Math.min(sample.gold.length - 1, i)); sel = 0; stop();
+  const it = item();
+  $("#who").textContent = it.name_ar;
+  $("#where").textContent = `سورة ${it.surah}، الآية ${it.ayah} · ${{ hafs: "حفص", warsh: "ورش", qalun: "قالون" }[it.riwayah]}`;
+  ctx = ctx || new AudioContext();
+  buf = await ctx.decodeAudioData(await (await fetch(it.clip)).arrayBuffer());
+  peaks = null; words(); chips(); progress(); draw();
+}
+
+function progress() {
+  const all = sample.gold.reduce((n, it) => n + it.words.length, 0);
+  const done = Object.values(gold).reduce((n, g) => n + g.words.filter(w => w.ok).length, 0);
+  $("#count").textContent = `الآية ${cur + 1} من ${sample.gold.length} · ${done} من ${all} كلمة`;
+  $("#bar").style.width = (100 * done / all) + "%";
+}
+
+function chips() {
+  const it = item(), ws = words(), box = $("#words");
+  box.style.fontFamily = `"${FONT[it.riwayah]}", serif`;
+  box.innerHTML = "";
+  it.words.forEach((w, i) => {
+    const b = document.createElement("button");
+    const moved = ws[i].start_ms !== w.start_ms || ws[i].end_ms !== w.end_ms;
+    b.className = "w" + (i === sel ? " sel" : "") + (moved ? " moved" : ws[i].ok ? " ok" : "");
+    b.textContent = w.text;
+    b.onclick = () => { sel = i; chips(); draw(); playWord(); };
+    box.appendChild(b);
+  });
+}
+
+// waveform, time running right to left
+const cv = $("#cv"); let peaks, W, H;
+const X = t => W - (t / buf.duration) * W;
+const T = x => (W - x) / W * buf.duration;
+function draw(cursor) {
+  if (!buf) return;
+  const dpr = devicePixelRatio || 1;
+  W = cv.clientWidth * dpr; H = cv.clientHeight * dpr;
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; peaks = null; }
+  if (!peaks) {
+    const d = buf.getChannelData(0), per = Math.ceil(d.length / W); peaks = new Float32Array(W);
+    for (let x = 0; x < W; x++) { let m = 0; for (let j = x * per; j < (x + 1) * per && j < d.length; j++) m = Math.max(m, Math.abs(d[j])); peaks[x] = m; }
+    const top = Math.max(...peaks) || 1; for (let x = 0; x < W; x++) peaks[x] /= top;
+  }
+  const g = cv.getContext("2d"), css = getComputedStyle(document.documentElement), c = n => css.getPropertyValue(n).trim();
+  g.clearRect(0, 0, W, H);
+  const ws = words();
+  ws.forEach((w, i) => {
+    if (w.start_ms == null) return;
+    const a = X(rel(w.end_ms)), b = X(rel(w.start_ms));
+    g.fillStyle = i === sel ? c("--band-on") : c("--band"); g.fillRect(a, 0, b - a, H);
+  });
+  g.fillStyle = c("--wave");
+  for (let x = W - 1; x >= 0; x--) { const p = peaks[W - 1 - x] * H * .42; g.fillRect(x, H / 2 - p, 1, Math.max(1, p * 2)); }
+  ws.forEach((w, i) => {
+    if (w.start_ms == null) return;
+    const on = i === sel;
+    for (const [ms, col] of [[w.start_ms, c("--accent")], [w.end_ms, c("--gold")]]) {
+      const x = X(rel(ms)); g.fillStyle = col; g.globalAlpha = on ? 1 : .45;
+      g.fillRect(x - (on ? 1.5 : 1) * dpr, 0, (on ? 3 : 2) * dpr, H);
+      if (on) { g.beginPath(); g.arc(x, 10 * dpr, 6 * dpr, 0, 7); g.fill(); }
+    }
+    g.globalAlpha = 1;
+  });
+  if (cursor != null) { g.fillStyle = c("--warn"); g.fillRect(X(cursor) - dpr, 0, 2 * dpr, H); }
+}
+addEventListener("resize", () => draw());
+
+// dragging an edge; an edge shared with the next or last word moves with it (hold Alt to part them)
+let drag;
+cv.onpointerdown = e => {
+  const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * W / r.width, ws = words();
+  let best, dist = 9 * (devicePixelRatio || 1);
+  ws.forEach((w, i) => ["start_ms", "end_ms"].forEach(f => {
+    if (w[f] == null) return;
+    const d = Math.abs(X(rel(w[f])) - x) - (i === sel ? 3 : 0);
+    if (d < dist) { dist = d; best = { i, f }; }
+  }));
+  if (!best) {
+    const t = abs(T(x)), i = ws.findIndex(w => w.start_ms <= t && t <= w.end_ms);
+    if (i >= 0) { sel = i; chips(); draw(); playWord(); }
+    return;
+  }
+  const w = ws[best.i], was = w[best.f], other = best.f === "start_ms" ? ws[best.i - 1] : ws[best.i + 1];
+  drag = { ...best, link: !e.altKey && other && other[best.f === "start_ms" ? "end_ms" : "start_ms"] === was ? other : null };
+  sel = best.i; cv.setPointerCapture(e.pointerId); chips();
+};
+cv.onpointermove = e => {
+  const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * W / r.width;
+  if (!drag) {
+    const near = words().some(w => w.start_ms != null && ["start_ms", "end_ms"].some(f => Math.abs(X(rel(w[f])) - x) < 9 * devicePixelRatio));
+    cv.style.cursor = near ? "ew-resize" : "pointer"; return;
+  }
+  const ws = words(), w = ws[drag.i], ms = abs(Math.max(0, Math.min(buf.duration, T(x))));
+  w[drag.f] = drag.f === "start_ms" ? Math.min(ms, w.end_ms - 20) : Math.max(ms, w.start_ms + 20);
+  if (drag.link) drag.link[drag.f === "start_ms" ? "end_ms" : "start_ms"] = w[drag.f];
+  w.ok = true; draw();
+};
+cv.onpointerup = () => { if (drag) { drag = null; chips(); progress(); save(); playWord(); } };
+
+function nudge(f, d) {
+  const ws = words(), w = ws[sel], other = f === "start_ms" ? ws[sel - 1] : ws[sel + 1];
+  const g = f === "start_ms" ? "end_ms" : "start_ms", linked = other && other[g] === w[f];
+  w[f] += d; if (linked) other[g] = w[f]; w.ok = true;
+  chips(); draw(); progress(); save(); playWord();
+}
+document.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { const [f, d] = b.dataset.n.split(","); nudge(f + "_ms", +d); });
+
+// playing
+function stop() { if (source) { source.onended = null; try { source.stop(); } catch {} source = null; } playing = null; draw(); }
+function play(from, to) {
+  stop(); ctx.resume();
+  source = ctx.createBufferSource(); source.buffer = buf; source.playbackRate.value = SPEEDS[speed];
+  source.connect(ctx.destination);
+  const t0 = ctx.currentTime, rate = SPEEDS[speed];
+  source.start(0, Math.max(0, from), Math.max(.05, to - from) / 1);
+  source.onended = () => { source = null; playing = null; draw(); };
+  playing = { from, to };
+  (function tick() { if (!playing) return; const t = from + (ctx.currentTime - t0) * rate; draw(Math.min(t, to)); requestAnimationFrame(tick); })();
+}
+function playWord() { const w = words()[sel]; if (w.start_ms != null) play(rel(w.start_ms), rel(w.end_ms)); }
+$("#playAyah").onclick = () => playing ? stop() : play(0, buf.duration);
+$("#playWord").onclick = playWord;
+$("#speed").onclick = () => { speed = (speed + 1) % SPEEDS.length; $("#speed").textContent = `السرعة ${["١×", "¾×", "½×"][speed]}`; };
+function okWord() {
+  words()[sel].ok = true; save(); progress();
+  if (sel < item().words.length - 1) { sel++; chips(); draw(); playWord(); } else chips();
+}
+$("#okWord").onclick = okWord;
+$("#okAyah").onclick = () => { words().forEach(w => w.ok = true); save(); progress(); load(cur + 1); };
+
+addEventListener("keydown", e => {
+  if (!$("#gold").classList.contains("on") || !buf) return;
+  const n = item().words.length;
+  if (e.code === "Space") { e.preventDefault(); $("#playAyah").click(); }
+  else if (e.key === "Enter") { e.preventDefault(); playWord(); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); sel = Math.min(n - 1, sel + 1); chips(); draw(); playWord(); }
+  else if (e.key === "ArrowRight") { e.preventDefault(); sel = Math.max(0, sel - 1); chips(); draw(); playWord(); }
+  else if (e.key === "PageDown") { e.preventDefault(); load(cur + 1); }
+  else if (e.key === "PageUp") { e.preventDefault(); load(cur - 1); }
+  else if (e.key.toLowerCase() === "c") okWord();
+});
+
+// ---------- deliberate mistakes ----------
+let recorder;
+function list() {
+  const box = $("#list"); box.innerHTML = "";
+  sample.mistakes.forEach(m => {
+    const card = document.createElement("div");
+    const done = ["correct", "mistake"].every(t => file(m, t));
+    card.className = "card m" + (done ? " done" : "");
+    const text = m.words.map((w, i) => i + 1 === m.word ? `<mark>${w}</mark>` : w).join(" ");
+    card.innerHTML = `<div class="n">${m.id}</div>
+      <div><div class="ayah" style="font-family:'KFGQPC Hafs',serif">${text}</div>
+        <div><span class="how">${m.how}</span> <span class="ref">· سورة ${m.surah}، الآية ${m.ayah}</span></div></div>
+      <div class="takes">${take(m, "correct", "صحيحة")}${take(m, "mistake", "بالخطأ")}</div>`;
+    box.appendChild(card);
+  });
+  box.querySelectorAll("[data-rec]").forEach(b => b.onclick = () => record(b));
+}
+const MIME = ["audio/webm", "audio/mp4"].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "audio/webm";
+const stem = (m, t) => `${String(m.id).padStart(2, "0")}-${t}.`;
+const file = (m, t) => [...recordings].find(r => r.startsWith(stem(m, t)));
+function take(m, t, label) {
+  const has = file(m, t);
+  return `<div class="take"><button class="btn ${t === "mistake" ? "" : "main"}" data-rec="${m.id},${t}">● ${has ? "أعد" : "سجّل"} ${label}</button>
+    ${has ? `<audio controls preload="none" src="/recordings/${file(m, t)}?${Date.now()}"></audio>` : ""}</div>`;
+}
+async function record(b) {
+  const [id, t] = b.dataset.rec.split(",");
+  if (recorder) { recorder.stop(); return; }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+  } catch (e) { $("#saved").textContent = "الميكروفون غير مسموح في هذا المتصفح، افتح الصفحة في Safari أو Chrome"; return; }
+  const parts = []; recorder = new MediaRecorder(stream, { mimeType: MIME });
+  recorder.ondataavailable = e => parts.push(e.data);
+  recorder.onstop = async () => {
+    stream.getTracks().forEach(x => x.stop()); recorder = null; clearInterval(timer);
+    const r = await (await fetch(`/recording/${id}/${t}`, { method: "POST", headers: { "Content-Type": MIME }, body: new Blob(parts, { type: MIME }) })).json();
+    [...recordings].filter(x => x.startsWith(stem({ id }, t))).forEach(x => recordings.delete(x));
+    recordings.add(r.saved); $("#saved").textContent = "حُفظ التسجيل ✓"; list();
+  };
+  recorder.start();
+  b.classList.add("rec"); const s0 = Date.now();
+  const timer = setInterval(() => b.textContent = `■ أوقف ${Math.floor((Date.now() - s0) / 1000)}ث`, 250);
+}
+
+// ---------- start ----------
+(async () => {
+  sample = await (await fetch("sample.json")).json();
+  const state = await (await fetch("/state")).json();
+  gold = state.gold; recordings = new Set(state.recordings);
+  list();
+  const first = sample.gold.findIndex(it => !(gold[it.clip] && gold[it.clip].words.every(w => w.ok)));
+  await load(first < 0 ? 0 : first);
+  show(location.hash === "#mist" ? "mist" : "gold");
+})();
+</script>
+</body>
+</html>
