@@ -101,6 +101,8 @@
         <span class="nudge">النهاية
           <button class="btn" data-n="end,-10">أبكر</button><button class="btn" data-n="end,10">أبطأ</button></span>
         <span class="grow"></span>
+        <button class="btn" id="undo">↶ تراجع <small>⌘Z</small></button>
+        <button class="btn" id="resetWord">أرجع الكلمة كما كانت</button>
         <button class="btn" id="okWord">الكلمة صحيحة <small>C</small></button>
         <button class="btn main" id="okAyah">الآية كلها صحيحة ←</button>
       </div>
@@ -156,6 +158,24 @@ function words() {
 const rel = ms => (ms - item().clip_starts_ms) / 1000;           // dataset ms → seconds in the clip
 const abs = s => Math.round(s * 1000 + item().clip_starts_ms);
 
+let history = [];
+const snap = () => { history.push({ key: key(item()), words: JSON.parse(JSON.stringify(words())) }); if (history.length > 200) history.shift(); };
+function undo() {
+  const last = history.pop();
+  if (!last) return;
+  if (last.key !== key(item())) { const i = sample.gold.findIndex(it => key(it) === last.key); gold[last.key].words = last.words; save(); load(i); return; }
+  gold[last.key].words = last.words; chips(); draw(); progress(); save();
+}
+function resetWord() {
+  snap();
+  const o = item().words[sel], w = words()[sel];
+  w.start_ms = o.start_ms; w.end_ms = o.end_ms; w.ok = false;
+  // an edge it shared with a neighbour goes back with it
+  const ws = words(), prev = ws[sel - 1], next = ws[sel + 1];
+  if (prev && item().words[sel - 1].end_ms === o.start_ms) prev.end_ms = o.start_ms;
+  if (next && item().words[sel + 1].start_ms === o.end_ms) next.start_ms = o.end_ms;
+  chips(); draw(); progress(); save(); playWord();
+}
 async function load(i) {
   cur = Math.max(0, Math.min(sample.gold.length - 1, i)); sel = 0; stop();
   const it = item();
@@ -228,6 +248,7 @@ addEventListener("resize", () => draw());
 // dragging an edge; an edge shared with the next or last word moves with it (hold Alt to part them)
 let drag;
 cv.onpointerdown = e => {
+  snapPending = true;
   const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * W / r.width, ws = words();
   let best, dist = 9 * (devicePixelRatio || 1);
   ws.forEach((w, i) => ["start_ms", "end_ms"].forEach(f => {
@@ -250,6 +271,7 @@ cv.onpointermove = e => {
     const near = words().some(w => w.start_ms != null && ["start_ms", "end_ms"].some(f => Math.abs(X(rel(w[f])) - x) < 9 * devicePixelRatio));
     cv.style.cursor = near ? "ew-resize" : "pointer"; return;
   }
+  if (snapPending) { snap(); snapPending = false; }
   const ws = words(), w = ws[drag.i], ms = abs(Math.max(0, Math.min(buf.duration, T(x))));
   w[drag.f] = drag.f === "start_ms" ? Math.min(ms, w.end_ms - 20) : Math.max(ms, w.start_ms + 20);
   if (drag.link) drag.link[drag.f === "start_ms" ? "end_ms" : "start_ms"] = w[drag.f];
@@ -257,7 +279,9 @@ cv.onpointermove = e => {
 };
 cv.onpointerup = () => { if (drag) { drag = null; chips(); progress(); save(); playWord(); } };
 
+let snapPending = false;
 function nudge(f, d) {
+  snap();
   const ws = words(), w = ws[sel], other = f === "start_ms" ? ws[sel - 1] : ws[sel + 1];
   const g = f === "start_ms" ? "end_ms" : "start_ms", linked = other && other[g] === w[f];
   w[f] += d; if (linked) other[g] = w[f]; w.ok = true;
@@ -282,11 +306,14 @@ $("#playAyah").onclick = () => playing ? stop() : play(0, buf.duration);
 $("#playWord").onclick = playWord;
 $("#speed").onclick = () => { speed = (speed + 1) % SPEEDS.length; $("#speed").textContent = `السرعة ${["١×", "¾×", "½×"][speed]}`; };
 function okWord() {
+  snap();
   words()[sel].ok = true; save(); progress();
   if (sel < item().words.length - 1) { sel++; chips(); draw(); playWord(); } else chips();
 }
 $("#okWord").onclick = okWord;
-$("#okAyah").onclick = () => { words().forEach(w => w.ok = true); save(); progress(); load(cur + 1); };
+$("#undo").onclick = undo;
+$("#resetWord").onclick = resetWord;
+$("#okAyah").onclick = () => { snap(); words().forEach(w => w.ok = true); save(); progress(); load(cur + 1); };
 
 addEventListener("keydown", e => {
   if (!$("#gold").classList.contains("on") || !buf) return;
@@ -297,6 +324,7 @@ addEventListener("keydown", e => {
   else if (e.key === "ArrowRight") { e.preventDefault(); sel = Math.max(0, sel - 1); chips(); draw(); playWord(); }
   else if (e.key === "PageDown") { e.preventDefault(); load(cur + 1); }
   else if (e.key === "PageUp") { e.preventDefault(); load(cur - 1); }
+  else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); undo(); }
   else if (e.key.toLowerCase() === "c") okWord();
 });
 
